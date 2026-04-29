@@ -47,5 +47,22 @@ export const actions = {
             console.error("KRITISCHER DATENBANKFEHLER BEIM INSERT:", error);
             return fail(500, { error: "Datenbankfehler beim Speichern." });
         }
+    },
+
+    delete: async ({ request }) => {
+        const data = await request.formData();
+        const id = data.get('id'); // Wir holen uns die ID aus dem Formular
+
+        if (!id) {
+            return fail(400, { error: "Keine ID zum Löschen übergeben." });
+        }
+
+        try {
+            await db.deleteFilterAttribute(id);
+            return { success: true };
+        } catch (error) {
+            console.error("Fehler beim Löschen in der Action:", error);
+            return fail(500, { error: "Datenbankfehler beim Löschen." });
+        }
     }
 };

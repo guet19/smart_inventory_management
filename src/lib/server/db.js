@@ -50,9 +50,22 @@ async function createFilterAttribute(attributeData) {
     }
 }
 
+async function deleteFilterAttribute(id) {
+    try {
+        const collection = db.collection("filter_attributes");
+        // MongoDB erwartet ein ObjectId für die Suche nach der _id
+        const result = await collection.deleteOne({ _id: new ObjectId(id) });
+        return result;
+    } catch (error) {
+        console.error("Fehler beim Löschen des Attributs:", error);
+        throw error;
+    }
+}
+
 // Alle Funktionen exportieren
 export default { 
     getmaincategories, 
     getFilterAttributes, 
-    createFilterAttribute 
+    createFilterAttribute,
+    deleteFilterAttribute
 };
