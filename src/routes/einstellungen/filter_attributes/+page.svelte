@@ -300,14 +300,18 @@
                   <form
                     method="POST"
                     action="?/delete"
-                    use:enhance
-                    onsubmit={() =>
-                      confirm(
-                        `Möchtest du das Attribut "${attr.label}" wirklich unwiderruflich löschen?`,
-                      )}
+                    use:enhance={({ formData }) => {
+                      // PROFI-MOVE: Wir hängen den Namen hier hart in das Datenpaket!
+                      formData.set('filterName', attr.label);
+                    }}
+                    onsubmit={(e) => {
+                      // Sicheres Abfangen des "Abbrechen"-Klicks im Dialog
+                      if (!confirm(`Möchtest du das Attribut "${attr.label}" wirklich unwiderruflich löschen?`)) {
+                        e.preventDefault(); 
+                      }
+                    }}
                   >
                     <input type="hidden" name="id" value={attr._id} />
-                    <input type="hidden" name="filterName" value={attr.label} />
                     <button type="submit" class="btn btn-sm btn-outline-danger">Löschen</button>
                   </form>
                 </div>
