@@ -10,6 +10,21 @@
   let isMultiple = $state(false);
   let editingId = $state(null);
 
+  // --- NEU: States und Funktion für die Erfolgsmeldung ---
+  let successMessage = $state("");
+  let successTimeout;
+
+  function showSuccessMessage(msg, duration = 3000) {
+      successMessage = msg;
+      if (successTimeout) clearTimeout(successTimeout);
+      
+      // Blendet die Nachricht nach X Millisekunden wieder aus
+      successTimeout = setTimeout(() => {
+          successMessage = "";
+      }, duration);
+  }
+  // -------------------------------------------------------
+
   function startEdit(attr) {
       editingId = attr._id;
       label = attr.label;
@@ -44,8 +59,14 @@
   }
 </script>
 
-<div class="container mt-4">
-  <h1 class="mb-4">Filtermöglichkeiten verwalten</h1>
+<div class="container mt-4 mb-5 pb-5"> <h1 class="mb-4">Filtermöglichkeiten verwalten</h1>
+
+  {#if successMessage}
+      <div class="alert alert-success d-flex align-items-center animate-fade-in shadow-sm mb-4" role="alert">
+          <i class="bi bi-check-circle-fill me-2 fs-5"></i>
+          <div>{successMessage}</div>
+      </div>
+  {/if}
 
   <div class="row">
     <div class="col-md-5 mb-4">
@@ -58,9 +79,14 @@
           use:enhance={() => {
             return async ({ update, result }) => {
               await update();
-              // Wenn das Speichern erfolgreich war, leeren wir das Formular
+              
+              // NEU: Wenn das Speichern erfolgreich war, Formular leeren und Meldung zeigen
               if (result.type === 'success' || result.type === 'redirect') {
                   cancelEdit();
+                  
+                  // Wir nehmen die Nachricht vom Server oder den Standardtext
+                  const msg = result.data?.message || "Erfolgreich gespeichert!";
+                  showSuccessMessage(msg);
               }
             };
           }}
@@ -237,7 +263,16 @@
                   <form
                     method="POST"
                     action="?/delete"
-                    use:enhance
+                    use:enhance={() => {
+                        // NEU: Feedback auch beim Löschen
+                        return async ({ update, result }) => {
+                            await update();
+                            if (result.type === 'success') {
+                                const msg = result.data?.message || "Erfolgreich gelöscht!";
+                                showSuccessMessage(msg);
+                            }
+                        };
+                    }}
                     onsubmit={() =>
                       confirm("Möchtest du dieses Attribut wirklich unwiderruflich löschen?")}
                   >
@@ -265,7 +300,6 @@
     <a class="btn btn-primary px-4 back" href="/einstellungen">Zurück</a>
   </div>
 </footer>
-
 
 <style>
   .animate-fade-in {
