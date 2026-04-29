@@ -45,7 +45,7 @@
 </script>
 
 <div class="container mt-4">
-  <h1 class="mb-4">Attribut-Bibliothek verwalten</h1>
+  <h1 class="mb-4">Filtermöglichkeiten verwalten</h1>
 
   <div class="row">
     <div class="col-md-5 mb-4">
@@ -182,7 +182,7 @@
     </div>
 
     <div class="col-md-7">
-      <h3 class="h5 mb-4">Vorhandene Bibliothek</h3>
+      <h3 class="h5 mb-4">Vorhandene Filtermöglichkeiten</h3>
 
       <div class="list-group shadow-sm">
         {#each data?.attributeLibrary ?? [] as attr}
