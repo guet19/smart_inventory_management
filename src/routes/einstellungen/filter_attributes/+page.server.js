@@ -51,6 +51,7 @@ export const actions = {
             
             return { success: true };
         } catch (error) {
+            console.error("KRITISCHER DATENBANKFEHLER BEIM INSERT:", error);
             return fail(500, { error: "Datenbankfehler beim Speichern." });
         }
     }
