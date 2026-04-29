@@ -260,6 +260,13 @@
   </div>
 </div>
 
+<footer class="fixed-bottom bg-body-tertiary border-top p-3 d-flex shadow-sm">
+  <div class="container">
+    <a class="btn btn-primary px-4 back" href="/einstellungen">Zurück</a>
+  </div>
+</footer>
+
+
 <style>
   .animate-fade-in {
     animation: fadeIn 0.2s ease-out;
