@@ -46,7 +46,7 @@ export const actions = {
                 options: ui_type === 'select' ? options : [],
                 createdAt: new Date()
             });
-            return { success: true };
+            return { success: true, message: `Attribut "${label}" erfolgreich angelegt!` };
         } catch (error) {
             console.error("KRITISCHER DATENBANKFEHLER BEIM INSERT:", error);
             return fail(500, { error: "Datenbankfehler beim Speichern." });
@@ -87,7 +87,7 @@ export const actions = {
                 options: ui_type === 'select' ? options : [],
                 updatedAt: new Date()
             });
-            return { success: true };
+            return { success: true, message: `Attribut "${label}" erfolgreich aktualisiert!` };
         } catch (error) {
             return fail(500, { error: "Fehler beim Aktualisieren." });
         }
@@ -104,7 +104,7 @@ export const actions = {
 
         try {
             await db.deleteFilterAttribute(id);
-            return { success: true };
+            return { success: true, message: "Attribut erfolgreich gelöscht!" };
         } catch (error) {
             console.error("Fehler beim Löschen in der Action:", error);
             return fail(500, { error: "Datenbankfehler beim Löschen." });
