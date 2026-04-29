@@ -1,14 +1,13 @@
 import { MongoClient, ObjectId } from "mongodb";
 import { DB_URI } from "$env/static/private";
 
-
 const client = new MongoClient(DB_URI);
 await client.connect();
 const db = client.db("Storify");
 
+// --- Deine bestehende Funktion ---
 async function getmaincategories() {
     let maincategories = [];
-
     try {
         const collection = db.collection("category");
         const query = {};
@@ -19,8 +18,41 @@ async function getmaincategories() {
         });
     } catch (error) { 
         console.error("Fehler beim Laden der Kategorien:", error);
-   }
-return maincategories;
+    }
+    return maincategories;
 } 
 
-export default {getmaincategories};
+// --- NEU: Attribute laden ---
+async function getFilterAttributes() {
+    let attributes = [];
+    try {
+        const collection = db.collection("filter_attributes");
+        attributes = await collection.find({}).toArray();
+        
+        attributes.forEach(attr => {
+            attr._id = attr._id.toString();
+        });
+    } catch (error) {
+        console.error("Fehler beim Laden der Attribute:", error);
+    }
+    return attributes;
+}
+
+// --- NEU: Attribut speichern ---
+async function createFilterAttribute(attributeData) {
+    try {
+        const collection = db.collection("filter_attributes");
+        const result = await collection.insertOne(attributeData);
+        return result;
+    } catch (error) {
+        console.error("Fehler beim Speichern des Attributs:", error);
+        throw error; // Wir werfen den Fehler weiter, damit die Seite weiss, dass etwas schiefgelaufen ist
+    }
+}
+
+// Alle Funktionen exportieren
+export default { 
+    getmaincategories, 
+    getFilterAttributes, 
+    createFilterAttribute 
+};

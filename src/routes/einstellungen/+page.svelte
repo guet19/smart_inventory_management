@@ -18,7 +18,7 @@
     <div class="col-3">
       <div class="card mt-5" style="width:100%;">
         <div class="card-body">
-        <img src="/images/edit_categories.png" class= "img-fluid rounded shadow-sm" alt="Filterattribute_bearbeiten">
+        <img src="/images/filterattribute_bearbeiten.png" class= "img-fluid rounded shadow-sm" alt="Filterattribute_bearbeiten">
           <div class="d-flex justify-content-center">
              <a href="/einstellungen/filter_attributes" class="btn btn-primary">Attributfilter bearbeiten</a>
           </div>
