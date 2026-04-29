@@ -38,7 +38,7 @@ export const actions = {
                 createdAt: new Date()
             });
             // HIER sendet der Server das Erfolgs-Signal und die Nachricht:
-            return { success: true, message: `Attribut "${label}" erfolgreich angelegt!` };
+            return { success: true, message: `Filter "${label}" erfolgreich angelegt!` };
         } catch (error) {
             return fail(500, { error: "Datenbankfehler beim Speichern." });
         }
@@ -71,7 +71,7 @@ export const actions = {
                 updatedAt: new Date()
             });
             // HIER sendet der Server das Erfolgs-Signal und die Nachricht:
-            return { success: true, message: `Attribut "${label}" erfolgreich aktualisiert!` };
+            return { success: true, message: `Filter "${label}" erfolgreich aktualisiert!` };
         } catch (error) {
             return fail(500, { error: "Fehler beim Aktualisieren." });
         }
@@ -80,6 +80,8 @@ export const actions = {
     delete: async ({ request }) => {
         const data = await request.formData();
         const id = data.get('id');
+        // NEU: Den Namen auslesen (Fallback, falls leer)
+        const label = data.get('label') || 'Attribut'; 
 
         if (!id) {
             return fail(400, { error: "Keine ID zum Löschen übergeben." });
@@ -87,8 +89,8 @@ export const actions = {
 
         try {
             await db.deleteFilterAttribute(id);
-            // HIER sendet der Server das Erfolgs-Signal und die Nachricht:
-            return { success: true, message: "Attribut erfolgreich gelöscht!" };
+            // NEU: Den ausgelesenen Namen in die Nachricht einbauen
+            return { success: true, message: `Attribut "${label}" erfolgreich gelöscht!` };
         } catch (error) {
             return fail(500, { error: "Datenbankfehler beim Löschen." });
         }
