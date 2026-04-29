@@ -80,8 +80,9 @@ export const actions = {
     delete: async ({ request }) => {
         const data = await request.formData();
         const id = data.get('id');
-        // NEU: Den Namen auslesen (Fallback, falls leer)
-        const label = data.get('label') || 'Attribut'; 
+        
+        // NEU: Wir lesen 'filterName' aus
+        const filterName = data.get('filterName') || 'Filter'; 
 
         if (!id) {
             return fail(400, { error: "Keine ID zum Löschen übergeben." });
@@ -89,8 +90,8 @@ export const actions = {
 
         try {
             await db.deleteFilterAttribute(id);
-            // NEU: Den ausgelesenen Namen in die Nachricht einbauen
-            return { success: true, message: `Attribut "${label}" erfolgreich gelöscht!` };
+            // NEU: Wir nutzen filterName in der Nachricht
+            return { success: true, message: `Filter "${filterName}" erfolgreich gelöscht!` };
         } catch (error) {
             return fail(500, { error: "Datenbankfehler beim Löschen." });
         }

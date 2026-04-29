@@ -307,10 +307,8 @@
                       )}
                   >
                     <input type="hidden" name="id" value={attr._id} />
-                    <input type="hidden" name="label" value={attr.label} />
-                    <button type="submit" class="btn btn-sm btn-outline-danger"
-                      >Löschen</button
-                    >
+                    <input type="hidden" name="filterName" value={attr.label} />
+                    <button type="submit" class="btn btn-sm btn-outline-danger">Löschen</button>
                   </form>
                 </div>
               </div>
