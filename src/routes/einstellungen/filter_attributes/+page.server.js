@@ -1,16 +1,12 @@
 import { fail } from '@sveltejs/kit';
+// Wir importieren das Standard-Export-Objekt aus deiner db.js
 import db from '$lib/server/db.js'; 
 
 export async function load() {
-    // ... (Dein bisheriger Load-Code bleibt exakt gleich)
     let attributes = [];
     try {
-        const collection = db.getDb().collection("filter_attributes");
-        attributes = await collection.find({}).toArray();
-        attributes = attributes.map(attr => ({
-            ...attr,
-            _id: attr._id.toString()
-        }));
+        // Wir nutzen jetzt deine fertige Hilfsfunktion! Kein .getDb() mehr nötig.
+        attributes = await db.getFilterAttributes();
     } catch (error) {
         console.error("Fehler beim Laden:", error);
     }
@@ -24,7 +20,6 @@ export const actions = {
         const ui_type = data.get('ui_type');
         const unit = data.get('unit');
         
-        // NEU: Wir lesen aus, ob es eine Mehrfachauswahl ist (gibt 'true' oder null zurück)
         const is_multiple = data.get('is_multiple') === 'true';
         
         const optionsRaw = data.get('options') || "";
@@ -37,13 +32,11 @@ export const actions = {
         }
 
         try {
-            const collection = db.getDb().collection("filter_attributes");
-            
-            await collection.insertOne({
+            // Wir übergeben das fertige Objekt direkt an deine neue Hilfsfunktion!
+            await db.createFilterAttribute({
                 label,
                 ui_type,
                 unit: unit || null,
-                // NEU: Wir speichern das Feld is_multiple (nur bei select relevant)
                 is_multiple: ui_type === 'select' ? is_multiple : false,
                 options: ui_type === 'select' ? options : [],
                 createdAt: new Date()
