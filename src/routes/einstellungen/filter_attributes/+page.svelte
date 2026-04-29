@@ -7,8 +7,25 @@
   let unit = $state("");
   let currentOption = $state("");
   let optionsList = $state([]);
-  // NEU: State für die Mehrfachauswahl
   let isMultiple = $state(false);
+  let editingId = $state(null);
+
+  function startEdit(attr) {
+      editingId = attr._id;
+      label = attr.label;
+      ui_type = attr.ui_type;
+      unit = attr.unit || "";
+      isMultiple = attr.is_multiple || false;
+      optionsList = attr.options ? [...attr.options] : [];
+      
+      // Scrollt zum Formular hoch
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function cancelEdit() {
+      editingId = null;
+      label = ""; ui_type = "text"; unit = ""; optionsList = []; isMultiple = false;
+  }
 
   function addOption() {
     if (currentOption.trim() && !optionsList.includes(currentOption.trim())) {
@@ -33,26 +50,27 @@
   <div class="row">
     <div class="col-md-5 mb-4">
       <div class="card shadow-sm border-0 bg-dark text-white p-4">
-        <h3 class="h5 mb-4">Neues Filter-Attribut anlegen</h3>
+        <h3 class="h5 mb-4">{editingId ? 'Attribut bearbeiten' : 'Neues Filter-Attribut anlegen'}</h3>
 
         <form
           method="POST"
-          action="?/create"
+          action={editingId ? '?/update' : '?/create'}
           use:enhance={() => {
-            return async ({ update }) => {
+            return async ({ update, result }) => {
               await update();
-              // NEU: Auch den Switch wieder zurücksetzen
-              label = "";
-              unit = "";
-              optionsList = [];
-              isMultiple = false;
+              // Wenn das Speichern erfolgreich war, leeren wir das Formular
+              if (result.type === 'success' || result.type === 'redirect') {
+                  cancelEdit();
+              }
             };
           }}
         >
+          {#if editingId}
+              <input type="hidden" name="id" value={editingId}>
+          {/if}
+
           <div class="mb-3">
-            <label for="label" class="form-label small"
-              >Anzeigename (z.B. Gewinde)</label
-            >
+            <label for="label" class="form-label small">Anzeigename (z.B. Gewinde)</label>
             <input
               type="text"
               id="label"
@@ -78,8 +96,7 @@
           </div>
 
           <div class="mb-3">
-            <label for="unit" class="form-label small">Einheit (optional)</label
-            >
+            <label for="unit" class="form-label small">Einheit (optional)</label>
             <input
               type="text"
               id="unit"
@@ -99,10 +116,7 @@
                   id="isMultipleSwitch"
                   bind:checked={isMultiple}
                 />
-                <label
-                  class="form-check-label text-white"
-                  for="isMultipleSwitch"
-                >
+                <label class="form-check-label text-white" for="isMultipleSwitch">
                   Mehrfachauswahl erlauben
                 </label>
               </div>
@@ -114,9 +128,7 @@
             </div>
 
             <div class="mb-3">
-              <label for="optionInput" class="form-label small text-muted"
-                >Auswahl-Optionen (Werte)</label
-              >
+              <label for="optionInput" class="form-label small text-muted">Auswahl-Optionen (Werte)</label>
               <div class="input-group mb-2">
                 <input
                   type="text"
@@ -131,15 +143,12 @@
                   type="button"
                   class="btn btn-primary"
                   aria-label="Hinzufügen"
-                  onclick={addOption}>+</button
-                >
+                  onclick={addOption}>+</button>
               </div>
 
               <div class="d-flex flex-wrap gap-2 mt-2">
                 {#each optionsList as opt, i}
-                  <span
-                    class="badge bg-primary d-flex align-items-center gap-2"
-                  >
+                  <span class="badge bg-primary d-flex align-items-center gap-2">
                     {opt}
                     <button
                       type="button"
@@ -151,17 +160,19 @@
                   </span>
                 {/each}
               </div>
-              <input
-                type="hidden"
-                name="options"
-                value={optionsList.join(",")}
-              />
+              <input type="hidden" name="options" value={optionsList.join(",")} />
             </div>
           {/if}
 
-          <button type="submit" class="btn btn-success w-100 mt-3 fw-bold"
-            >Attribut speichern</button
-          >
+          <div class="d-flex gap-2 mt-3">
+              <button type="submit" class="btn btn-success flex-grow-1 fw-bold">
+                  {editingId ? 'Änderungen speichern' : 'Attribut speichern'}
+              </button>
+              
+              {#if editingId}
+                  <button type="button" class="btn btn-outline-light" onclick={cancelEdit}>Abbrechen</button>
+              {/if}
+          </div>
 
           {#if form?.error}
             <p class="text-danger small mt-2">{form.error}</p>
@@ -174,28 +185,20 @@
       <h3 class="h5 mb-4">Vorhandene Bibliothek</h3>
 
       <div class="list-group shadow-sm">
-        {#each data.attributeLibrary as attr}
-          <div
-            class="list-group-item list-group-item-action p-0 overflow-hidden"
-          >
+        {#each data?.attributeLibrary ?? [] as attr}
+          <div class="list-group-item list-group-item-action p-0 overflow-hidden">
             <button
               class="w-100 border-0 bg-transparent p-3 d-flex justify-content-between align-items-center text-start"
               onclick={() => toggleAttribute(attr._id)}
             >
               <div>
                 <span class="fw-bold text-primary">{attr.label}</span>
-                <span class="badge bg-light text-dark ms-2 border"
-                  >{attr.ui_type}</span
-                >
+                <span class="badge bg-light text-dark ms-2 border">{attr.ui_type}</span>
                 {#if attr.ui_type === "select" && attr.is_multiple}
                   <span class="badge bg-info text-dark ms-1">Multi</span>
                 {/if}
               </div>
-              <i
-                class="bi {expandedId === attr._id
-                  ? 'bi-chevron-up'
-                  : 'bi-chevron-down'}"
-              ></i>
+              <i class="bi {expandedId === attr._id ? 'bi-chevron-up' : 'bi-chevron-down'}"></i>
             </button>
 
             {#if expandedId === attr._id}
@@ -203,18 +206,10 @@
                 <div class="row">
                   <div class="col-md-4">
                     <p class="small text-muted mb-1">Eingabetyp:</p>
-                    <strong
-                      >{attr.ui_type === "select"
-                        ? "Dropdown (Auswahl)"
-                        : "Freitext / Zahl"}</strong
-                    >
+                    <strong>{attr.ui_type === "select" ? "Dropdown (Auswahl)" : "Freitext / Zahl"}</strong>
                     {#if attr.ui_type === "select"}
                       <div class="mt-2 small text-secondary">
-                        <i
-                          class="bi {attr.is_multiple
-                            ? 'bi-check-all'
-                            : 'bi-check-circle'}"
-                        ></i>
+                        <i class="bi {attr.is_multiple ? 'bi-check-all' : 'bi-check-circle'}"></i>
                         {attr.is_multiple ? "Mehrfachauswahl" : "Einzelauswahl"}
                       </div>
                     {/if}
@@ -222,14 +217,10 @@
 
                   {#if attr.options && attr.options.length > 0}
                     <div class="col-md-8">
-                      <p class="small text-muted mb-1">
-                        Erlaubte Werte (Optionen):
-                      </p>
+                      <p class="small text-muted mb-1">Erlaubte Werte (Optionen):</p>
                       <div class="d-flex flex-wrap gap-1">
                         {#each attr.options as option}
-                          <span
-                            class="badge bg-white text-primary border border-primary-subtle"
-                          >
+                          <span class="badge bg-white text-primary border border-primary-subtle">
                             {option}
                           </span>
                         {/each}
@@ -239,23 +230,19 @@
                 </div>
 
                 <div class="mt-3 pt-3 border-top d-flex gap-2">
-                  <button class="btn btn-sm btn-outline-secondary"
-                    >Bearbeiten</button
-                  >
+                  <button class="btn btn-sm btn-outline-secondary" onclick={() => startEdit(attr)}>
+                      Bearbeiten
+                  </button>
 
                   <form
                     method="POST"
                     action="?/delete"
                     use:enhance
                     onsubmit={() =>
-                      confirm(
-                        "Möchtest du dieses Attribut wirklich unwiderruflich löschen?",
-                      )}
+                      confirm("Möchtest du dieses Attribut wirklich unwiderruflich löschen?")}
                   >
                     <input type="hidden" name="id" value={attr._id} />
-                    <button type="submit" class="btn btn-sm btn-outline-danger"
-                      >Löschen</button
-                    >
+                    <button type="submit" class="btn btn-sm btn-outline-danger">Löschen</button>
                   </form>
                 </div>
               </div>
@@ -264,7 +251,7 @@
         {/each}
       </div>
 
-      {#if data.attributeLibrary.length === 0}
+      {#if !(data?.attributeLibrary?.length)}
         <div class="alert alert-info mt-3">
           Keine Attribute in der Bibliothek gefunden.
         </div>

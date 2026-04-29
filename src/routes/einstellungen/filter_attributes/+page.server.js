@@ -64,5 +64,35 @@ export const actions = {
             console.error("Fehler beim Löschen in der Action:", error);
             return fail(500, { error: "Datenbankfehler beim Löschen." });
         }
+    },
+
+    update: async ({ request }) => {
+        const data = await request.formData();
+        const id = data.get('id');
+        const label = data.get('label');
+        const ui_type = data.get('ui_type');
+        const unit = data.get('unit');
+        const is_multiple = data.get('is_multiple') === 'true';
+        
+        const optionsRaw = data.get('options') || "";
+        const options = optionsRaw.split(',').map(opt => opt.trim()).filter(opt => opt !== "");
+
+        if (!id || !label || !ui_type) {
+            return fail(400, { error: "ID, Name und Typ sind erforderlich." });
+        }
+
+        try {
+            await db.updateFilterAttribute(id, {
+                label,
+                ui_type,
+                unit: unit || null,
+                is_multiple: ui_type === 'select' ? is_multiple : false,
+                options: ui_type === 'select' ? options : [],
+                updatedAt: new Date()
+            });
+            return { success: true };
+        } catch (error) {
+            return fail(500, { error: "Fehler beim Aktualisieren." });
+        }
     }
 };

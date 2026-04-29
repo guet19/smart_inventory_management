@@ -62,10 +62,25 @@ async function deleteFilterAttribute(id) {
     }
 }
 
+async function updateFilterAttribute(id, attributeData) {
+    try {
+        const collection = db.collection("filter_attributes");
+        const result = await collection.updateOne(
+            { _id: new ObjectId(id) },
+            { $set: attributeData } // Nutzt $set, um nur die angegebenen Felder zu ändern
+        );
+        return result;
+    } catch (error) {
+        console.error("Fehler beim Updaten des Attributs:", error);
+        throw error;
+    }
+}
+
 // Alle Funktionen exportieren
 export default { 
     getmaincategories, 
     getFilterAttributes, 
     createFilterAttribute,
-    deleteFilterAttribute
+    deleteFilterAttribute,
+    updateFilterAttribute
 };
