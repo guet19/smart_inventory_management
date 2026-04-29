@@ -76,11 +76,26 @@ async function updateFilterAttribute(id, attributeData) {
     }
 }
 
+async function getFilterAttributeByLabel(label) {
+    try {
+        const collection = db.collection("filter_attributes");
+        // Wir suchen mit einem regulären Ausdruck, um Groß-/Kleinschreibung zu ignorieren
+        const attribute = await collection.findOne({ 
+            label: { $regex: new RegExp(`^${label}$`, 'i') } 
+        });
+        return attribute;
+    } catch (error) {
+        console.error("Fehler bei der Label-Prüfung:", error);
+        return null;
+    }
+}
+
 // Alle Funktionen exportieren
 export default { 
     getmaincategories, 
     getFilterAttributes, 
     createFilterAttribute,
     deleteFilterAttribute,
-    updateFilterAttribute
+    updateFilterAttribute,
+    getFilterAttributeByLabel
 };
