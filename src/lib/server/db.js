@@ -158,6 +158,36 @@ async function getFilterAttributeByLabel(label) {
     }
 }
 
+async function addOptionToFilterAttribute(id, newOption) {
+    try {
+        const collection = db.collection("filter_attributes");
+        // $addToSet stellt sicher, dass "M5" nicht doppelt angelegt wird!
+        const result = await collection.updateOne(
+            { _id: new ObjectId(id) },
+            { $addToSet: { options: newOption } } 
+        );
+        return result;
+    } catch (error) {
+        console.error("Fehler beim Quick-Add:", error);
+        throw error;
+    }
+}
+
+async function removeOptionFromFilterAttribute(id, optionToRemove) {
+    try {
+        const collection = db.collection("filter_attributes");
+        // $pull entfernt genau diesen einen Text-String aus dem Array
+        const result = await collection.updateOne(
+            { _id: new ObjectId(id) },
+            { $pull: { options: optionToRemove } }
+        );
+        return result;
+    } catch (error) {
+        console.error("Fehler beim Quick-Remove:", error);
+        throw error;
+    }
+}
+
 
 
 // Alle Funktionen exportieren
@@ -170,5 +200,7 @@ export default {
     getFilterAttributeByLabel,
     createSubcategory,
     createMainCategory,
-    updateSubcategoryAttributes
+    updateSubcategoryAttributes,
+    addOptionToFilterAttribute,
+    removeOptionFromFilterAttribute
 };
