@@ -169,5 +169,6 @@ export default {
     updateFilterAttribute,
     getFilterAttributeByLabel,
     createSubcategory,
-    createMainCategory
+    createMainCategory,
+    updateSubcategoryAttributes
 };
