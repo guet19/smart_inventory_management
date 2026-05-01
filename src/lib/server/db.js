@@ -5,24 +5,89 @@ const client = new MongoClient(DB_URI);
 await client.connect();
 const db = client.db("Storify");
 
-// --- Deine bestehende Funktion ---
-async function getmaincategories() {
-    let maincategories = [];
+// --- Funktionen um die Kategorien für die Kategorieeinstellungen zu laden ---
+async function getCategories() {
+    let categories = [];
     try {
-        const collection = db.collection("category");
-        const query = {};
-        const projection = {name: 1};
-        maincategories = await collection.find(query).project(projection).toArray();
-        maincategories.forEach(category => {
-            category._id = category._id.toString();
+        const collection = db.collection("categories");
+        categories = await collection.find({}).toArray();
+        
+        // MongoDB ObjectIds für Svelte in Strings umwandeln
+        categories.forEach(cat => {
+            cat._id = cat._id.toString();
         });
-    } catch (error) { 
+    } catch (error) {
         console.error("Fehler beim Laden der Kategorien:", error);
     }
-    return maincategories;
-} 
+    return categories;
+}
 
-// --- NEU: Attribute laden ---
+// --- Hauptkategorie erstellen ---
+async function createMainCategory(name) {
+    try {
+        const collection = db.collection("categories");
+        const result = await collection.insertOne({
+            name: name,
+            subcategories: [], // Startet mit einem leeren Array
+            createdAt: new Date()
+        });
+        return result;
+    } catch (error) {
+        console.error("Fehler beim Speichern der Hauptkategorie:", error);
+        throw error;
+    }
+}
+
+// --- NEU: Unterkategorie hinzufügen ---
+async function createSubcategory(mainCategoryId, subName) {
+    try {
+        const collection = db.collection("categories");
+        const subId = "sub_" + Date.now(); // Generiert eine simple, einmalige ID
+        
+        // Fügt das neue Objekt in das 'subcategories' Array der gewählten Hauptkategorie ein
+        const result = await collection.updateOne(
+            { _id: new ObjectId(mainCategoryId) },
+            { $push: { subcategories: { id: subId, name: subName, allowed_attributes: [] } } }
+        );
+        return result;
+    } catch (error) {
+        console.error("Fehler beim Speichern der Unterkategorie:", error);
+        throw error;
+    }
+}
+
+// --- NEU: Attribute einer Unterkategorie zuweisen ---
+async function updateSubcategoryAttributes(mainCategoryId, subCategoryId, attributeIds) {
+    try {
+        const collection = db.collection("categories");
+        
+        // Aktualisiert das 'allowed_attributes' Array der exakt passenden Unterkategorie
+        const result = await collection.updateOne(
+            { _id: new ObjectId(mainCategoryId), "subcategories.id": subCategoryId },
+            { $set: { "subcategories.$.allowed_attributes": attributeIds } }
+        );
+        return result;
+    } catch (error) {
+        console.error("Fehler beim Zuweisen der Attribute:", error);
+        throw error;
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//Attributfunktionen für Attributeinstellungen
+// --- Filterattribute für die Attributeinstellung zu laden ---
 async function getFilterAttributes() {
     let attributes = [];
     try {
@@ -38,7 +103,8 @@ async function getFilterAttributes() {
     return attributes;
 }
 
-// --- NEU: Attribut speichern ---
+
+// --- Attribut speichern ---
 async function createFilterAttribute(attributeData) {
     try {
         const collection = db.collection("filter_attributes");
@@ -49,7 +115,7 @@ async function createFilterAttribute(attributeData) {
         throw error; // Wir werfen den Fehler weiter, damit die Seite weiss, dass etwas schiefgelaufen ist
     }
 }
-
+// --- Attribut löschen ---
 async function deleteFilterAttribute(id) {
     try {
         const collection = db.collection("filter_attributes");
@@ -62,6 +128,7 @@ async function deleteFilterAttribute(id) {
     }
 }
 
+// --- Attribut updaten ---
 async function updateFilterAttribute(id, attributeData) {
     try {
         const collection = db.collection("filter_attributes");
@@ -76,6 +143,7 @@ async function updateFilterAttribute(id, attributeData) {
     }
 }
 
+// --- Attribut Hilfsfunktion ---
 async function getFilterAttributeByLabel(label) {
     try {
         const collection = db.collection("filter_attributes");
@@ -90,12 +158,16 @@ async function getFilterAttributeByLabel(label) {
     }
 }
 
+
+
 // Alle Funktionen exportieren
 export default { 
-    getmaincategories, 
+    getCategories, 
     getFilterAttributes, 
     createFilterAttribute,
     deleteFilterAttribute,
     updateFilterAttribute,
-    getFilterAttributeByLabel
+    getFilterAttributeByLabel,
+    createSubcategory,
+    createMainCategory
 };
