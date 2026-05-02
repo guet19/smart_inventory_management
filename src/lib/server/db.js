@@ -202,6 +202,19 @@ async function removeOptionFromFilterAttribute(id, optionToRemove) {
     }
 }
 
+// --- NEU: Artikel speichern ---
+async function createArticle(articleData) {
+    try {
+        // Wir nutzen eine neue Collection "articles"
+        const collection = db.collection("articles");
+        const result = await collection.insertOne(articleData);
+        return result;
+    } catch (error) {
+        console.error("Fehler beim Speichern des Artikels:", error);
+        throw error;
+    }
+}
+
 
 
 // Alle Funktionen exportieren
@@ -217,5 +230,6 @@ export default {
     updateSubcategoryAttributes,
     addOptionToFilterAttribute,
     removeOptionFromFilterAttribute,
-    renameMainCategory
+    renameMainCategory,
+    createArticle
 };
