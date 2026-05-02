@@ -102,7 +102,7 @@
 <div class="container mt-4 mb-5">
     
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
-        <h2>Attribut-Bibliothek verwalten</h2>
+        <h2>Filtermöglichkeiten verwalten</h2>
         {#if activeAttributeId}
             <button class="btn btn-outline-secondary shadow-sm fw-bold" onclick={closeEditMode}>
                 <i class="bi bi-arrow-left me-1"></i> Zurück zur Übersicht
@@ -222,7 +222,6 @@
             <div class="col-md-4 mb-4 animate-fade-in">
                 <div class="card shadow-sm border-0 bg-dark text-white p-4 sticky-top dark-scrollbar" style="top: 2rem; max-height: 85vh; overflow-y: auto;">
                     <h3 class="h5 mb-3">Neues Filter-Attribut</h3>
-                    <p class="small text-muted mb-4">Lege hier neue Eigenschaften an.</p>
                     
                     <form method="POST" action="?/create" use:enhance={() => {
                         return async ({ result, update }) => {
@@ -235,11 +234,11 @@
                         };
                     }}>
                         <div class="mb-3">
-                            <label for="label" class="form-label small text-muted">Anzeigename</label>
+                            <label for="label" class="form-label small">Anzeigename</label>
                             <input type="text" id="label" name="label" class="form-control bg-secondary text-white border-0" bind:value={label} required>
                         </div>
                         <div class="mb-3">
-                            <label for="ui_type" class="form-label small text-muted">Eingabetyp</label>
+                            <label for="ui_type" class="form-label small">Eingabetyp</label>
                             <select id="ui_type" name="ui_type" class="form-select bg-secondary text-white border-0" bind:value={ui_type}>
                                 <option value="text">Freitext</option>
                                 <option value="number">Zahl</option>
@@ -247,7 +246,7 @@
                             </select>
                         </div>
                         <div class="mb-3">
-                            <label for="unit" class="form-label small text-muted">Einheit (optional)</label>
+                            <label for="unit" class="form-label small ">Einheit (optional)</label>
                             <input type="text" id="unit" name="unit" class="form-control bg-secondary text-white border-0" bind:value={unit}>
                         </div>
 
@@ -283,10 +282,10 @@
 
             <div class="col-md-8 animate-fade-in">
                 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
-                    <h3 class="h5 mb-0">Vorhandene Bibliothek</h3>
+                    <h3 class="h5 mb-0">Vorhandene Filtermöglichkeiten</h3>
                     <div class="input-group shadow-sm" style="max-width: 300px;">
                         <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
-                        <input type="text" class="form-control border-start-0 ps-0" placeholder="Attribute suchen..." bind:value={searchQuery}>
+                        <input type="text" class="form-control border-start-0 ps-0" placeholder="Filter durchsuchen..." bind:value={searchQuery}>
                         {#if searchQuery !== ""}
                             <button class="btn btn-outline-secondary border-start-0 bg-white" type="button" aria-label="Zurücksetzen" onclick={() => searchQuery = ""}><i class="bi bi-x-lg"></i></button>
                         {/if}
@@ -415,4 +414,16 @@
     .dark-scrollbar::-webkit-scrollbar-track { background: transparent; }
     .dark-scrollbar::-webkit-scrollbar-thumb { background-color: #495057; border-radius: 10px; }
     .dark-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #6c757d; }
+
+
+p {
+    color: white;
+}
+    h2 {
+        color: #22C55E;
+    }
+
+    h3 {
+        color: #22C55E;
+    }
 </style>

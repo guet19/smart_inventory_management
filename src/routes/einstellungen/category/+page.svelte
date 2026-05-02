@@ -2,6 +2,11 @@
     import { enhance } from '$app/forms';
     let { data, form } = $props();
 
+    // Svelte-Action für den Fokus (a11y-freundlicher Ersatz für 'autofocus')
+    function focus(node) {
+        node.focus();
+    }
+
     // State für Formulare & Suche (Übersicht)
     let newMainName = $state("");
     let newSubName = $state("");
@@ -13,8 +18,11 @@
     let activeSubId = $state(null);
     let attributeSearchQuery = $state("");
     
-    // NEU: State für die grüne Erfolgsmeldung
     let successMessage = $state(""); 
+
+    // State für das Umbenennen der Hauptkategorie (Inline-Editing)
+    let editingMainId = $state(null);
+    let editMainName = $state("");
 
     // --- DATEN-LOGIK: ÜBERSICHT ---
     let sortedCategories = $derived(
@@ -40,10 +48,21 @@
             }, [])
     );
 
+    // --- FUNKTIONEN ---
     function toggleCategory(id) {
         if (searchQuery.trim() !== '') return; 
         expandedId = expandedId === id ? null : id;
         newSubName = ""; 
+    }
+
+    function startEditMain(category) {
+        editingMainId = category._id;
+        editMainName = category.name;
+    }
+
+    function cancelEditMain() {
+        editingMainId = null;
+        editMainName = "";
     }
 
     // --- DATEN-LOGIK: FOCUS-MODUS (Attribute bearbeiten) ---
@@ -60,7 +79,7 @@
         activeMainId = mainId;
         activeSubId = subId;
         attributeSearchQuery = "";
-        successMessage = ""; // Sicherheitshalber leeren
+        successMessage = "";
         window.scrollTo(0, 0); 
     }
 
@@ -72,11 +91,9 @@
 
 <div class="container mt-4 mb-5">
     
-    <!-- HEADER -->
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
         <h2>Kategorien verwalten</h2>
         
-        <!-- Zurück-Button wird nur im Focus-Modus angezeigt -->
         {#if activeMainId && activeSubId}
             <button class="btn btn-outline-secondary shadow-sm fw-bold" onclick={closeAttributeEdit}>
                 <i class="bi bi-arrow-left me-1"></i> Zurück zur Übersicht
@@ -84,7 +101,6 @@
         {/if}
     </div>
 
-    <!-- NEU: Temporäre Erfolgsmeldung -->
     {#if successMessage !== ""}
         <div class="alert alert-success shadow-sm animate-fade-in d-flex align-items-center gap-2 mb-4">
             <i class="bi bi-check-circle-fill"></i> {successMessage}
@@ -99,7 +115,6 @@
         {#if activeCategory && activeSubcategory}
             <div class="col-12 animate-fade-in">
                 <div class="card shadow border-0 overflow-hidden">
-                    
                     <div class="card-header bg-dark text-white p-4 d-flex justify-content-between align-items-center">
                         <div>
                             <span class="text-secondary small text-uppercase fw-bold">Filterattribute zuweisen</span>
@@ -115,21 +130,13 @@
                     </div>
 
                     <div class="card-body bg-light p-4">
-                        
-                        <!-- HIER IST DIE MAGIE: Erweiterte use:enhance Funktion -->
                         <form method="POST" action="?/updateAttributes" use:enhance={() => {
                             return async ({ result, update }) => {
-                                await update(); // Aktualisiert die Daten vom Server
-                                
-                                // Wenn alles geklappt hat:
+                                await update();
                                 if (result.type === 'success') {
                                     successMessage = `Attribute für "${activeSubcategory.name}" erfolgreich gespeichert!`;
-                                    closeAttributeEdit(); // Springt zurück zur Übersicht
-                                    
-                                    // Blendet die Nachricht nach 3.5 Sekunden aus
-                                    setTimeout(() => {
-                                        successMessage = "";
-                                    }, 3500);
+                                    closeAttributeEdit(); 
+                                    setTimeout(() => { successMessage = ""; }, 3500);
                                 }
                             };
                         }}>
@@ -186,9 +193,6 @@
                                     <i class="bi bi-save me-2"></i> Zuweisung speichern
                                 </button>
                             </div>
-                            {#if form?.errorAttr}
-                                <p class="text-danger small mt-2 text-end">{form.errorAttr}</p>
-                            {/if}
                         </form>
                     </div>
                 </div>
@@ -198,23 +202,19 @@
         <!-- ANSICHT 2: ÜBERSICHT (Kategorien-Baum)     -->
         <!-- ========================================== -->
         {:else}
-            <!-- LINKE SPALTE -->
             <div class="col-md-4 mb-4 animate-fade-in">
                 <div class="card shadow-sm border-0 bg-dark text-white p-4 sticky-top" style="top: 2rem;">
-                    <h3 class="h5 mb-3">Neue Hauptkategorie</h3>
-                    <p class="small text-muted mb-4">Erstelle hier die oberste Ebene.</p>
+                    <h3 class="h5 mb-3">Neue Hauptkategorie erstellen</h3>
                     <form method="POST" action="?/createMain" use:enhance={() => { return async ({ update }) => { await update(); newMainName = ""; }; }}>
                         <div class="mb-3">
-                            <label for="mainName" class="form-label small text-muted">Name der Hauptkategorie</label>
+                            <label for="mainName" class="form-label small ">Bezeichnung</label>
                             <input type="text" id="mainName" name="name" class="form-control bg-secondary text-white border-0" bind:value={newMainName} required>
                         </div>
                         <button type="submit" class="btn btn-success w-100 fw-bold">Hauptkategorie anlegen</button>
-                        {#if form?.errorMain} <p class="text-danger small mt-2">{form.errorMain}</p> {/if}
                     </form>
                 </div>
             </div>
 
-            <!-- RECHTE SPALTE -->
             <div class="col-md-8 animate-fade-in">
                 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
                     <h3 class="h5 mb-0">Kategorien-Struktur</h3>
@@ -229,19 +229,43 @@
                 
                 <div class="list-group shadow-sm">
                     {#each filteredCategories as category}
-                        <div class="list-group-item list-group-item-action p-0 overflow-hidden bg-white">
+                        <div class="list-group-item p-0 overflow-hidden bg-white">
                             
-                            <button 
-                                class="w-100 border-0 bg-transparent p-3 d-flex justify-content-between align-items-center text-start"
-                                onclick={() => toggleCategory(category._id)}
-                                aria-expanded={expandedId === category._id || searchQuery.trim() !== ''}
-                            >
-                                <div class="d-flex align-items-center gap-2">
-                                    <span class="fw-bold fs-5 text-dark">{category.name}</span>
-                                    <span class="badge bg-secondary rounded-pill">{category.subcategories?.length || 0}</span>
-                                </div>
-                                <i class="bi {expandedId === category._id || searchQuery.trim() !== '' ? 'bi-chevron-up' : 'bi-chevron-down'} text-dark"></i>
-                            </button>
+                            <div class="w-100 p-3 d-flex justify-content-between align-items-center">
+                                {#if editingMainId === category._id}
+                                    <!-- BEARBEITUNGS-MODUS (mit use:focus und aria-label für Abbrechen) -->
+                                    <form method="POST" action="?/renameMain" class="w-100 d-flex gap-2 m-0" use:enhance={() => {
+                                        return async ({ result, update }) => {
+                                            await update();
+                                            if (result.type === 'success') {
+                                                successMessage = `Kategorie erfolgreich umbenannt!`;
+                                                editingMainId = null;
+                                                setTimeout(() => { successMessage = ""; }, 3000);
+                                            }
+                                        };
+                                    }}>
+                                        <input type="hidden" name="id" value={category._id}>
+                                        <input type="text" name="newName" class="form-control form-control-sm" bind:value={editMainName} required use:focus>
+                                        <button type="submit" class="btn btn-sm btn-success flex-shrink-0"><i class="bi bi-check-lg"></i> Speichern</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary flex-shrink-0" aria-label="Abbrechen" onclick={cancelEditMain}><i class="bi bi-x-lg"></i></button>
+                                    </form>
+                                {:else}
+                                    <!-- NORMALER MODUS -->
+                                    <div class="d-flex align-items-center gap-2 flex-grow-1" style="cursor: pointer;" onclick={() => toggleCategory(category._id)} role="button" tabindex="0" onkeydown={(e) => e.key === 'Enter' && toggleCategory(category._id)}>
+                                        <span class="fw-bold fs-5 text-dark">{category.name}</span>
+                                        <span class="badge bg-secondary rounded-pill">{category.subcategories?.length || 0}</span>
+                                    </div>
+                                    
+                                    <div class="d-flex align-items-center gap-1">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary border-0" aria-label="Umbenennen" onclick={() => startEditMain(category)}>
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary border-0" aria-label="Auf/Zuklappen" onclick={() => toggleCategory(category._id)}>
+                                            <i class="bi {expandedId === category._id || searchQuery.trim() !== '' ? 'bi-chevron-up' : 'bi-chevron-down'} text-dark"></i>
+                                        </button>
+                                    </div>
+                                {/if}
+                            </div>
 
                             {#if expandedId === category._id || searchQuery.trim() !== ''}
                                 <div class="p-3 bg-light border-top">
@@ -296,18 +320,13 @@
 </div>
 
 <style>
-    .animate-fade-in { 
-        animation: fadeIn 0.3s ease-out; 
-    }
+    .animate-fade-in { animation: fadeIn 0.3s ease-out; }
     @keyframes fadeIn {
         from { opacity: 0; transform: translateY(-10px); }
         to { opacity: 1; transform: translateY(0); }
     }
-    .form-check-custom {
-        transition: all 0.2s ease-in-out;
-    }
-    .form-check-custom:hover {
-        background-color: #f8f9fa;
-        border-color: #0d6efd !important;
-    }
+    .form-check-custom { transition: all 0.2s ease-in-out; }
+    .form-check-custom:hover { background-color: #f8f9fa; border-color: #0d6efd !important; }
+    label { color: white; }
+    h2, h3 { color: #22C55E; }
 </style>

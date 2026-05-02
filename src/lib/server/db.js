@@ -55,6 +55,20 @@ async function createSubcategory(mainCategoryId, subName) {
         throw error;
     }
 }
+// --- NEU: Hauptkategorie umbenennen ---
+async function renameMainCategory(id, newName) {
+    try {
+        const collection = db.collection("categories");
+        const result = await collection.updateOne(
+            { _id: new ObjectId(id) },
+            { $set: { name: newName } }
+        );
+        return result;
+    } catch (error) {
+        console.error("Fehler beim Umbenennen der Hauptkategorie:", error);
+        throw error;
+    }
+}
 
 // --- NEU: Attribute einer Unterkategorie zuweisen ---
 async function updateSubcategoryAttributes(mainCategoryId, subCategoryId, attributeIds) {
@@ -202,5 +216,6 @@ export default {
     createMainCategory,
     updateSubcategoryAttributes,
     addOptionToFilterAttribute,
-    removeOptionFromFilterAttribute
+    removeOptionFromFilterAttribute,
+    renameMainCategory
 };

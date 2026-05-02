@@ -20,7 +20,7 @@
         <div class="card-body">
         <img src="/images/filterattribute_bearbeiten.png" class= "img-fluid rounded shadow-sm" alt="Filterattribute_bearbeiten">
           <div class="d-flex justify-content-center">
-             <a href="/einstellungen/filter_attributes" class="btn btn-primary">Attributfilter bearbeiten</a>
+             <a href="/einstellungen/filter_attributes" class="btn btn-primary">Filter bearbeiten</a>
           </div>
          
         </div>

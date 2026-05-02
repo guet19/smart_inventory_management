@@ -66,6 +66,21 @@ export const actions = {
         } catch (error) {
             return fail(500, { errorAttr: "Fehler beim Zuweisen der Attribute in der DB." });
         }
+    },
+
+    renameMain: async ({ request }) => {
+        const data = await request.formData();
+        const id = data.get('id');
+        const newName = data.get('newName');
+
+        if (!id || !newName) return fail(400, { errorRename: "Daten fehlen." });
+
+        try {
+            await db.renameMainCategory(id, newName.trim());
+            return { successRename: true };
+        } catch (error) {
+            return fail(500, { errorRename: "Fehler beim Umbenennen in der Datenbank." });
+        }
     }
 
 };
