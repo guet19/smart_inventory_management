@@ -249,6 +249,8 @@ async function getArticleById(id) {
 
 
 
+
+
 // Alle Funktionen exportieren
 export default { 
     getCategories, 
