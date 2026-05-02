@@ -215,6 +215,23 @@ async function createArticle(articleData) {
     }
 }
 
+async function getArticles() {
+    let articles = [];
+    try {
+        const collection = db.collection("articles");
+        // Sortiert die neuesten Artikel nach oben (-1)
+        articles = await collection.find({}).sort({ createdAt: -1 }).toArray();
+        
+        // ObjectIds für Svelte in Strings umwandeln
+        articles.forEach(article => {
+            article._id = article._id.toString();
+        });
+    } catch (error) {
+        console.error("Fehler beim Laden der Artikel:", error);
+    }
+    return articles;
+}
+
 
 
 // Alle Funktionen exportieren
@@ -231,5 +248,6 @@ export default {
     addOptionToFilterAttribute,
     removeOptionFromFilterAttribute,
     renameMainCategory,
-    createArticle
+    createArticle,
+    getArticles
 };
