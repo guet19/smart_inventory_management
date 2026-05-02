@@ -4,6 +4,7 @@ import { writeFileSync } from 'fs';
 import { extname } from 'path';     
 
 export async function load() {
+    // Lade alle Kategorien und alle Attribute für den initialen Seitenaufbau
     const categories = await db.getCategories();
     const attributes = await db.getFilterAttributes();
     
@@ -42,6 +43,7 @@ export const actions = {
             const buffer = Buffer.from(await imageFile.arrayBuffer());
             writeFileSync(uploadPath, buffer);
             
+            // Speichert den Pfad relativ ab dem Root-Verzeichnis (für das Frontend)
             imagePath = `/uploads/${filename}`;
         }
 
@@ -53,14 +55,16 @@ export const actions = {
         for (const attr of attributesSchema) {
             const fieldName = `attr_${attr._id}`;
             
-            // formData.getAll() holt ALLE Werte eines Feldes als Array
+            // formData.getAll() holt ALLE Werte eines Feldes als Array, auch wenn es nur einer ist
             if (formData.has(fieldName)) {
                 // Leere Strings herausfiltern und Leerzeichen trimmen
-                const values = formData.getAll(fieldName).map(v => String(v).trim()).filter(v => v !== '');
+                const values = formData.getAll(fieldName)
+                    .map(v => String(v).trim())
+                    .filter(v => v !== '');
                 
                 if (values.length > 0) {
                     // Wenn is_multiple true ist, speichern wir das Array (z.B. ["Rot", "Blau"])
-                    // Andernfalls speichern wir nur den allerersten Wert als String (z.B. "Vishay")
+                    // Andernfalls speichern wir nur den allerersten Wert als reinen String (z.B. "Vishay")
                     articleAttributes[attr._id] = attr.is_multiple ? values : values[0];
                 }
             }

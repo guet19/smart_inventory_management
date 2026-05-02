@@ -29,17 +29,21 @@
         return matchSearch && matchMainCategory && matchSubCategory;
     });
 
-    // --- 3. DYNAMISCHE SIDEBAR-FILTER (Basierend auf DB-Schema) ---
+    // --- 3. DYNAMISCHE SIDEBAR-FILTER ---
     $: availableSidebarFilters = (() => {
         const attrMap = {}; 
         
-        // Sammeln aller vorhandenen Werte der aktuell gefilterten Artikel
         baseFilteredArticles.forEach(article => {
             if (article.attributes) {
                 for (const [attrId, value] of Object.entries(article.attributes)) {
                     if (value !== undefined && value !== "") {
                         if (!attrMap[attrId]) attrMap[attrId] = new Set();
-                        attrMap[attrId].add(value);
+                        
+                        if (Array.isArray(value)) {
+                            value.forEach(v => attrMap[attrId].add(v));
+                        } else {
+                            attrMap[attrId].add(value);
+                        }
                     }
                 }
             }
@@ -53,18 +57,14 @@
                 const optionsArr = Array.from(valueSet);
                 const unitStr = attrDef.unit ? ` ${attrDef.unit}` : '';
 
-                // WENN DAS DATENBANK-SCHEMA SAGT, ES IST EINE NUMMER:
+                // WENN ES EINE NUMMER IST (Range Slider)
                 if (attrDef.ui_type === 'number') {
-                    // Alle Werte in echte Zahlen umwandeln
-                    const numValues = optionsArr
-                        .map(v => parseFloat(String(v).replace(',', '.')))
-                        .filter(v => !isNaN(v));
+                    const numValues = optionsArr.map(v => parseFloat(String(v).replace(',', '.'))).filter(v => !isNaN(v));
 
                     if (numValues.length > 0) {
                         const min = Math.min(...numValues);
                         const max = Math.max(...numValues);
                         
-                        // Nur als Slider anzeigen, wenn es eine echte Spanne gibt
                         if (min < max) {
                             result.push({
                                 id: attrId,
@@ -74,17 +74,16 @@
                                 absMax: max,
                                 unit: unitStr
                             });
-                            continue; // Direkt zum nächsten Attribut
+                            continue; 
                         }
                     }
                 }
 
-                // WENN ES EIN SELECT IST (Oder eine Zahl mit nur einem einzigen vorkommenden Wert)
+                // WENN ES EIN SELECT/TEXT IST (Dropdown Multi-Select)
                 result.push({
                     id: attrId,
                     label: attrDef.label,
-                    type: 'checkbox',
-                    // Die Sortierung mit { numeric: true } ordnet "2 mm" vor "10 mm" ein!
+                    type: 'dropdown', // Geändert von 'checkbox' zu 'dropdown'
                     options: optionsArr.sort((a, b) => String(a).localeCompare(String(b), 'de', { sensitivity: 'base', numeric: true })),
                     unit: unitStr
                 });
@@ -93,19 +92,16 @@
         return result.sort((a, b) => a.label.localeCompare(b.label, 'de', { sensitivity: 'base' }));
     })();
 
-    // --- 4. DETAIL-FILTER STATES ---
-    let selectedAttributeFilters = {}; // Für Checkboxen
-    let activeRangeFilters = {};       // Für Range-Slider
+    // --- NEU: Sidebar Filter Suche ---
+    let sidebarAttributeSearch = "";
+    $: visibleSidebarFilters = availableSidebarFilters.filter(filter => 
+        filter.label.toLowerCase().includes(sidebarAttributeSearch.toLowerCase())
+    );
 
-    function toggleAttributeFilter(attrId, value, isChecked) {
-        if (!selectedAttributeFilters[attrId]) selectedAttributeFilters[attrId] = [];
-        if (isChecked) {
-            selectedAttributeFilters[attrId] = [...selectedAttributeFilters[attrId], value];
-        } else {
-            selectedAttributeFilters[attrId] = selectedAttributeFilters[attrId].filter(v => v !== value);
-        }
-        selectedAttributeFilters = { ...selectedAttributeFilters };
-    }
+
+    // --- 4. DETAIL-FILTER STATES ---
+    let selectedAttributeFilters = {}; // Für Multi-Select Dropdowns
+    let activeRangeFilters = {};       // Für Range-Slider
 
     function updateRange(attrId, type, rawValue, absMin, absMax) {
         let val = parseFloat(String(rawValue).replace(',', '.'));
@@ -133,10 +129,20 @@
 
     // --- 5. FINALES ARRAY FÜR DIE KARTEN ---
     $: finalFilteredArticles = baseFilteredArticles.filter(article => {
-        // 1. Checkboxen prüfen
+        // 1. Dropdown-Werte prüfen
         for (const [attrId, selectedValues] of Object.entries(selectedAttributeFilters)) {
+            // Svelte/SearchableSelect bindet ein leeres Array, wenn nichts ausgewählt ist
             if (selectedValues && selectedValues.length > 0) {
-                if (!article.attributes || !selectedValues.includes(article.attributes[attrId])) return false; 
+                const articleValue = article.attributes ? article.attributes[attrId] : undefined;
+                if (articleValue === undefined) return false; 
+
+                if (Array.isArray(articleValue)) {
+                    // ODER-Logik: Einer der angekreuzten Werte muss im Artikel existieren
+                    const hasMatch = selectedValues.some(val => articleValue.includes(val));
+                    if (!hasMatch) return false;
+                } else {
+                    if (!selectedValues.includes(articleValue)) return false;
+                }
             }
         }
 
@@ -216,37 +222,43 @@
         <div class="sidebar-section">
             <div class="sidebar-header">
                 <h3>Spezifikationen</h3>
-                {#if Object.values(selectedAttributeFilters).some(arr => arr.length > 0) || Object.keys(activeRangeFilters).length > 0}
+                <!-- Prüfen, ob Arrays befüllt sind oder Slider bewegt wurden -->
+                {#if Object.values(selectedAttributeFilters).some(arr => arr?.length > 0) || Object.keys(activeRangeFilters).length > 0}
                     <button class="btn-clear" on:click={clearAttributeFilters}>Filter löschen</button>
                 {/if}
             </div>
 
-            {#if availableSidebarFilters.length === 0}
-                <p class="no-filters-text">Keine weiteren Filter verfügbar.</p>
+            {#if availableSidebarFilters.length > 5}
+                <!-- Suchfeld für die Filter (nur anzeigen, wenn es viele Filter gibt) -->
+                <div class="sidebar-search">
+                    <input 
+                        type="text" 
+                        bind:value={sidebarAttributeSearch} 
+                        placeholder="Attribut suchen (z.B. Farbe)..." 
+                        class="sidebar-search-input" 
+                    />
+                </div>
+            {/if}
+
+            {#if visibleSidebarFilters.length === 0}
+                <p class="no-filters-text">Keine passenden Filter verfügbar.</p>
             {:else}
                 <div class="sidebar-filters-list">
-                    {#each availableSidebarFilters as filter}
+                    {#each visibleSidebarFilters as filter (filter.id)}
                         <div class="filter-group">
                             <h4 class="filter-group-title">{filter.label}</h4>
                             
-                            <!-- CHECKBOXEN (Für ui_type: "select" oder "text") -->
-                            {#if filter.type === 'checkbox'}
-                                <div class="filter-options">
-                                    {#each filter.options as opt}
-                                        <label class="checkbox-label">
-                                            <input 
-                                                type="checkbox" 
-                                                value={opt} 
-                                                checked={selectedAttributeFilters[filter.id]?.includes(opt)}
-                                                on:change={(e) => toggleAttributeFilter(filter.id, opt, e.target.checked)}
-                                            />
-                                            <!-- Anzeige des Wertes inkl. Einheit -->
-                                            <span class="checkbox-text">{opt}{filter.unit}</span>
-                                        </label>
-                                    {/each}
-                                </div>
+                            <!-- NEU: MULTI-SELECT DROPDOWN (statt Checkboxen) -->
+                            {#if filter.type === 'dropdown'}
+                                <SearchableSelect 
+                                    name="filter_{filter.id}" 
+                                    options={filter.options.map(opt => ({ value: opt, label: String(opt) + filter.unit }))} 
+                                    bind:value={selectedAttributeFilters[filter.id]} 
+                                    placeholder="{filter.label} wählen..." 
+                                    multiple={true} 
+                                />
                             
-                            <!-- RANGE-SLIDER (Für ui_type: "number") -->
+                            <!-- RANGE-SLIDER -->
                             {:else if filter.type === 'range'}
                                 <div class="range-filter-wrapper">
                                     <div class="range-inputs">
@@ -288,7 +300,7 @@
 </div>
 
 <style>
-    /* Die bestehenden Styles bleiben identisch, ich ergänze nur das Styling für die Einheiten-Anzeige */
+    /* Generelles Layout */
     .page-container { max-width: 1300px; margin: 0 auto; padding: 2rem 1rem; font-family: system-ui, -apple-system, sans-serif; color: #334155; }
     .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
     h1 { margin: 0; color: #1e293b; }
@@ -318,37 +330,27 @@
     .btn-details { margin-top: auto; text-align: center; padding: 0.6rem; background: #f1f5f9; color: #334155; text-decoration: none; border-radius: 4px; font-weight: 500; border: 1px solid #cbd5e1; }
     .no-results { grid-column: 1 / -1; text-align: center; padding: 3rem; background: #f8fafc; border-radius: 8px; color: #64748b; }
 
+    /* Sidebar Styling */
     .sidebar-section { flex: 1; background: white; padding: 1.5rem; border-radius: 8px; border: 1px solid #e2e8f0; position: sticky; top: 2rem; }
-    .sidebar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; padding-bottom: 0.5rem; border-bottom: 2px solid #e2e8f0; }
+    .sidebar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid #e2e8f0; }
     .sidebar-header h3 { margin: 0; font-size: 1.1rem; }
+    
+    /* NEU: Sidebar Suchfeld Styling */
+    .sidebar-search { margin-bottom: 1.5rem; }
+    .sidebar-search-input { width: 100%; padding: 0.5rem; font-size: 0.9rem; border: 1px solid #cbd5e1; border-radius: 4px; background: #f8fafc; }
+    .sidebar-search-input:focus { outline: none; border-color: #3b82f6; background: white; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
+    
     .btn-clear { background: none; border: none; color: #ef4444; font-size: 0.85rem; cursor: pointer; font-weight: 500; }
     .sidebar-filters-list { display: flex; flex-direction: column; gap: 1.5rem; }
-    .filter-group-title { margin: 0 0 0.8rem 0; font-size: 0.95rem; color: #334155; }
-    .filter-options { display: flex; flex-direction: column; gap: 0.5rem; }
-    .checkbox-label { display: flex; align-items: flex-start; gap: 0.5rem; font-size: 0.9rem; color: #475569; cursor: pointer; }
+    .filter-group-title { margin: 0 0 0.5rem 0; font-size: 0.95rem; color: #334155; }
+    .no-filters-text { font-size: 0.9rem; color: #64748b; }
 
-    /* Angepasst für Einheiten */
+    /* Slider Styling */
     .range-filter-wrapper { display: flex; flex-direction: column; gap: 0.8rem; }
     .range-inputs { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
     .range-separator { color: #94a3b8; font-weight: bold; }
-    .input-with-unit {
-        display: flex;
-        align-items: center;
-        background: white;
-        border: 1px solid #cbd5e1;
-        border-radius: 4px;
-        padding-right: 0.5rem;
-        flex: 1;
-    }
-    .range-num-input { 
-        width: 100%; 
-        padding: 0.3rem 0.5rem; 
-        border: none; 
-        background: transparent;
-        font-size: 0.9rem; 
-        text-align: right; 
-        outline: none;
-    }
+    .input-with-unit { display: flex; align-items: center; background: white; border: 1px solid #cbd5e1; border-radius: 4px; padding-right: 0.5rem; flex: 1; }
+    .range-num-input { width: 100%; padding: 0.3rem 0.5rem; border: none; background: transparent; font-size: 0.9rem; text-align: right; outline: none; }
     .unit-label { font-size: 0.8rem; color: #64748b; margin-left: 0.2rem; font-weight: 500;}
     
     .dual-slider { position: relative; width: 100%; height: 24px; margin-bottom: 0.5rem; }
