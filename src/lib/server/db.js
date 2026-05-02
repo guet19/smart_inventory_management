@@ -231,6 +231,21 @@ async function getArticles() {
     }
     return articles;
 }
+async function getArticleById(id) {
+    try {
+        const collection = db.collection("articles");
+        // Wandelt den String aus der URL in eine echte MongoDB-ID um
+        const article = await collection.findOne({ _id: new ObjectId(id) });
+        
+        if (article) {
+            article._id = article._id.toString(); // Für Svelte serialisieren
+        }
+        return article;
+    } catch (error) {
+        console.error("Fehler beim Laden des Artikels:", error);
+        return null;
+    }
+}
 
 
 
@@ -249,5 +264,6 @@ export default {
     removeOptionFromFilterAttribute,
     renameMainCategory,
     createArticle,
-    getArticles
+    getArticles,
+    getArticleById
 };
