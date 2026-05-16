@@ -67,7 +67,7 @@
             
             <div class="price-stock-box">
                 {#if article.price}
-                    <div class="price">CHF {article.price.toFixed(2)}</div>
+                    <div class="price">{article.price.toFixed(2)} CHF pro Stück </div>
                 {/if}
                 
                 <div class="stock-info" class:low-stock={article.minStock && article.stock <= article.minStock} class:out-of-stock={article.stock === 0}>
@@ -160,7 +160,7 @@
         text-decoration: underline;
     }
     .separator { color: #cbd5e1; }
-    .cat { font-weight: 500; color: #475569; }
+    .cat { font-weight: 500; color: grey; }
 
     /* Layout */
     .article-layout {
@@ -206,7 +206,7 @@
     .title {
         margin: 0;
         font-size: 2.2rem;
-        color: #0f172a;
+        color: #22C55E;
         line-height: 1.2;
     }
 
@@ -252,12 +252,12 @@
 
     .description h3, .specs-section h3 {
         font-size: 1.2rem;
-        color: #1e293b;
+        color: white;
         margin: 0 0 1rem 0;
     }
     .description p {
         line-height: 1.6;
-        color: #475569;
+        color: white;
         margin: 0;
         white-space: pre-wrap; /* Behält Zeilenumbrüche aus der Textarea bei */
     }
@@ -318,22 +318,22 @@
         border-collapse: collapse;
     }
     .specs-table tr:nth-child(odd) {
-        background: #f8fafc;
+        background: #0D6EFD;
     }
     .specs-table td {
         padding: 0.8rem 1rem;
-        border-bottom: 1px solid #e2e8f0;
+        border-bottom: 1px solid #0D6EFD;
     }
     .specs-table tr:last-child td {
         border-bottom: none;
     }
     .spec-label {
         width: 40%;
-        color: #64748b;
+        color: white;
         font-weight: 500;
     }
     .spec-value {
-        color: #1e293b;
+        color: white;
         font-weight: 600;
     }
 

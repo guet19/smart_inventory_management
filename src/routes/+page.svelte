@@ -428,9 +428,9 @@
     /* Generelles Layout */
     .page-container { max-width: 1300px; margin: 0 auto; padding: 2rem 1rem; font-family: system-ui, -apple-system, sans-serif; color: #334155; }
     .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
-    h1 { margin: 0; color: #1e293b; }
-    .btn-primary { background: #0f172a; color: white; padding: 0.6rem 1.2rem; border-radius: 6px; text-decoration: none; font-weight: 500; }
-    .btn-primary:hover { background: #1e293b; }
+    h1 { margin: 0; color: #22C55E; }
+    .btn-primary { background: #0d6efd; color: white; padding: 0.6rem 1.2rem; border-radius: 6px; text-decoration: none; font-weight: 500; }
+    .btn-primary:hover { background: #0056b3; }
     
     .top-bar { background: #f8fafc; padding: 1.5rem; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 1.5rem; }
     .filter-left { display: flex; gap: 1rem; flex-wrap: wrap; flex: 1; }
@@ -447,7 +447,7 @@
 
     .content-wrapper { display: flex; gap: 2rem; align-items: flex-start; }
     .articles-section { flex: 2; }
-    .results-info { font-size: 0.9rem; color: #64748b; margin-bottom: 1.5rem; }
+    .results-info { font-size: 0.9rem; color: white; margin-bottom: 1.5rem; }
     .article-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1.5rem; }
     .card { background: white; border-radius: 8px; border: 1px solid #e2e8f0; display: flex; flex-direction: column; transition: transform 0.2s; }
     .card:hover { transform: translateY(-4px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
@@ -588,5 +588,7 @@
         }
         .sidebar-section.is-open { transform: translateX(0); }
         .btn-close-sidebar { display: block; }
+
+        
     }
 </style>

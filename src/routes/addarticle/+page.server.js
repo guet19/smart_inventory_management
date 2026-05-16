@@ -1,29 +1,28 @@
-// src/routes/artikel-hinzufuegen/+page.server.js
 import db from '$lib/server/db.js';
-import { writeFileSync } from 'fs'; 
-import { extname } from 'path';     
+import { writeFile } from 'fs/promises'; 
+import { extname } from 'path';
 
 export async function load() {
-    // Lade alle Kategorien und alle Attribute für den initialen Seitenaufbau
     const categories = await db.getCategories();
     const attributes = await db.getFilterAttributes();
     
-    return {
-        categories,
-        attributes
-    };
+    return { categories, attributes };
 }
 
 export const actions = {
     default: async ({ request }) => {
         const formData = await request.formData();
         
-        // 1. Kategorien
-        const mainCategoryId = formData.get('mainCategoryId');
-        const subcategoryId = formData.get('subcategoryId');
-
-        // 2. Allgemeine Standardwerte
+        // --- 1. Serverseitige Basis-Validierung ---
         const title = formData.get('title');
+        const mainCategoryId = formData.get('mainCategoryId');
+        
+        if (!title || !mainCategoryId) {
+            return { success: false, error: 'Titel und Hauptkategorie sind Pflichtfelder.' };
+        }
+
+        // --- 2. Allgemeine Standardwerte ---
+        const subcategoryId = formData.get('subcategoryId');
         const description = formData.get('description');
         const stock = parseInt(formData.get('stock'), 10) || 0; 
         const minStock = formData.get('minStock') ? parseInt(formData.get('minStock'), 10) : null;
@@ -31,46 +30,50 @@ export const actions = {
         const orderLink = formData.get('orderLink');
         const price = formData.get('price') ? parseFloat(formData.get('price')) : null;
         
-        // 3. BILDVERARBEITUNG
+        // --- 3. BILDVERARBEITUNG (Asynchron & Abgesichert) ---
         const imageFile = formData.get('image');
         let imagePath = null; 
 
         if (imageFile && imageFile.size > 0) {
-            const ext = extname(imageFile.name);
+            // Security: Nur echte Bilder zulassen
+            const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+            if (!allowedTypes.includes(imageFile.type)) {
+                return { success: false, error: 'Nur JPG, PNG und WEBP Bilder sind erlaubt.' };
+            }
+
+            const ext = extname(imageFile.name) || `.${imageFile.type.split('/')[1]}`;
             const filename = `article_${Date.now()}${ext}`;
             const uploadPath = `static/uploads/${filename}`;
             
-            const buffer = Buffer.from(await imageFile.arrayBuffer());
-            writeFileSync(uploadPath, buffer);
-            
-            // Speichert den Pfad relativ ab dem Root-Verzeichnis (für das Frontend)
-            imagePath = `/uploads/${filename}`;
+            try {
+                const buffer = Buffer.from(await imageFile.arrayBuffer());
+                await writeFile(uploadPath, buffer);
+                imagePath = `/uploads/${filename}`;
+            } catch (fsError) {
+                console.error("Fehler beim Speichern des Bildes:", fsError);
+                return { success: false, error: 'Das Bild konnte nicht gespeichert werden.' };
+            }
         }
 
-        // 4. DYNAMISCHE ATTRIBUTE MIT ARRAY-SUPPORT (Multi-Select)
-        // Wir laden die Schema-Struktur aus der DB, um zu wissen, ob ein Attribut is_multiple=true hat
+        // --- 4. DYNAMISCHE ATTRIBUTE MIT ARRAY-SUPPORT ---
         const attributesSchema = await db.getFilterAttributes();
         const articleAttributes = {};
         
         for (const attr of attributesSchema) {
             const fieldName = `attr_${attr._id}`;
             
-            // formData.getAll() holt ALLE Werte eines Feldes als Array, auch wenn es nur einer ist
             if (formData.has(fieldName)) {
-                // Leere Strings herausfiltern und Leerzeichen trimmen
                 const values = formData.getAll(fieldName)
                     .map(v => String(v).trim())
                     .filter(v => v !== '');
                 
                 if (values.length > 0) {
-                    // Wenn is_multiple true ist, speichern wir das Array (z.B. ["Rot", "Blau"])
-                    // Andernfalls speichern wir nur den allerersten Wert als reinen String (z.B. "Vishay")
                     articleAttributes[attr._id] = attr.is_multiple ? values : values[0];
                 }
             }
         }
         
-        // 5. Finales Artikel-Objekt zusammenbauen
+        // --- 5. Finales Artikel-Objekt ---
         const newArticle = {
             mainCategoryId,
             subcategoryId,
@@ -86,12 +89,12 @@ export const actions = {
             createdAt: new Date()
         };
         
-        // 6. In Datenbank speichern
+        // --- 6. Datenbank-Speicherung ---
         try {
             await db.createArticle(newArticle);
             return { success: true, message: 'Artikel erfolgreich gespeichert!' };
         } catch (error) {
-            console.error("Fehler beim Speichern des Artikels:", error);
+            console.error("Fehler beim Speichern des Artikels in DB:", error);
             return { success: false, error: 'Fehler beim Speichern in der Datenbank.' };
         }
     }

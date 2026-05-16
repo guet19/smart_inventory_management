@@ -467,7 +467,7 @@
                 />
               </div>
             {/if}
-            <button type="submit" class="btn btn-success w-100 mt-3 fw-bold"
+            <button type="submit" class="btn btn-primary w-100"
               >Speichern</button
             >
           </form>

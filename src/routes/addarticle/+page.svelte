@@ -1,6 +1,10 @@
-<!-- src/routes/artikel-hinzufuegen/+page.svelte -->
 <script>
+    import { onDestroy, tick } from 'svelte';
+    import { enhance } from '$app/forms';
     import SearchableSelect from '$lib/components/SearchableSelect.svelte';
+    
+    import 'cropperjs/dist/cropper.css';
+    import Cropper from 'cropperjs';
     
     export let data;
     export let form;
@@ -16,7 +20,6 @@
     $: availableSubcategories = selectedMainCategory ? selectedMainCategory.subcategories : [];
     $: subCategoryOptions = availableSubcategories.map(sub => ({ value: sub.id, label: sub.name }));
 
-    // Reset der Unterkategorie bei Wechsel der Hauptkategorie
     $: if (selectedMainCategoryId) {
         selectedSubcategoryId = "";
     }
@@ -26,25 +29,69 @@
         ? attributes.filter(attr => selectedSubcategory.allowed_attributes.includes(attr._id))
         : [];
 
-    // --- Bildvorschau-Logik ---
-    let imagePreview = null;
+    // --- Bild- und Cropper-State ---
     let fileInputElement;
+    let imagePreview = null;     
+    let isCropping = false;      
+    let cropperImageEl;          
+    let cropperInstance = null;
+    let croppedFileBlob = null;  
 
-    function handleImageSelect(event) {
+    async function handleImageSelect(event) {
         const file = event.target.files[0];
-        if (file) {
-            imagePreview = URL.createObjectURL(file);
-        } else {
-            imagePreview = null;
-        }
+        if (!file) return;
+
+        if (imagePreview) URL.revokeObjectURL(imagePreview);
+
+        imagePreview = URL.createObjectURL(file);
+        isCropping = true;
+
+        await tick();
+
+        if (cropperInstance) cropperInstance.destroy();
+        cropperInstance = new Cropper(cropperImageEl, {
+            aspectRatio: 16 / 9, 
+            viewMode: 2,         
+            background: false,   
+            zoomable: false      
+        });
     }
 
-    function removeImage() {
-        imagePreview = null;
-        if (fileInputElement) {
-            fileInputElement.value = ''; // Leert das Input-Feld
-        }
+    function applyCrop() {
+        if (!cropperInstance) return;
+
+        const canvas = cropperInstance.getCroppedCanvas({
+            width: 1280, 
+            height: 720
+        });
+
+        canvas.toBlob((blob) => {
+            croppedFileBlob = blob;
+
+            if (imagePreview) URL.revokeObjectURL(imagePreview);
+            imagePreview = URL.createObjectURL(blob);
+
+            cropperInstance.destroy();
+            cropperInstance = null;
+            isCropping = false;
+        }, 'image/jpeg', 0.85); 
     }
+
+    function cancelCrop() {
+        if (cropperInstance) {
+            cropperInstance.destroy();
+            cropperInstance = null;
+        }
+        isCropping = false;
+        imagePreview = null;
+        croppedFileBlob = null;
+        if (fileInputElement) fileInputElement.value = '';
+    }
+
+    onDestroy(() => {
+        if (imagePreview) URL.revokeObjectURL(imagePreview);
+        if (cropperInstance) cropperInstance.destroy();
+    });
 </script>
 
 <div class="page-container">
@@ -57,10 +104,18 @@
         <div class="alert error">{form.error}</div>
     {/if}
 
-    <!-- WICHTIG: accept-charset für Umlaute, enctype für den Bild-Upload -->
-    <form method="POST" class="article-form" accept-charset="UTF-8" enctype="multipart/form-data">
+    <form 
+        method="POST" 
+        class="article-form" 
+        accept-charset="UTF-8" 
+        enctype="multipart/form-data" 
+        use:enhance={({ formData }) => {
+            if (croppedFileBlob) {
+                formData.set('image', croppedFileBlob, 'cropped_article_image.jpg');
+            }
+        }}
+    >
         
-        <!-- 1. Kategorisierung -->
         <div class="form-section">
             <h2>Kategorisierung</h2>
             <div class="form-group">
@@ -86,7 +141,6 @@
             {/if}
         </div>
 
-        <!-- 2. Allgemeine Informationen -->
         <div class="form-section">
             <h2>Allgemeine Informationen</h2>
             
@@ -124,30 +178,48 @@
                 <input type="url" id="orderLink" name="orderLink" placeholder="https://..." />
             </div>
 
-            <!-- Artikelbild mit Vorschau -->
-            <div class="form-group" style="margin-top: 1rem;">
+            <div class="form-group" style="margin-top: 2rem; border-top: 1px dashed #cbd5e1; padding-top: 1rem;">
                 <label for="image">Artikelbild</label>
-                <input 
-                    type="file" 
-                    id="image" 
-                    name="image" 
-                    accept="image/png, image/jpeg, image/webp" 
-                    bind:this={fileInputElement}
-                    on:change={handleImageSelect}
-                />
                 
-                {#if imagePreview}
+                {#if !isCropping && !imagePreview}
+                    <div>
+                        <input 
+                            type="file" 
+                            id="image"
+                            name="image" 
+                            accept="image/png, image/jpeg, image/webp" 
+                            bind:this={fileInputElement}
+                            on:change={handleImageSelect}
+                        />
+                    </div>
+                {/if}
+
+                {#if isCropping}
+                    <div class="cropper-container">
+                        <p class="cropper-instruction">Wähle den gewünschten Bildausschnitt (16:9)</p>
+                        <div class="image-workspace">
+                            <img bind:this={cropperImageEl} src={imagePreview} alt="Zuschneiden" />
+                        </div>
+                        <div class="cropper-actions">
+                            <button type="button" class="btn-cancel" on:click={cancelCrop}>Abbrechen</button>
+                            <button type="button" class="btn-apply" on:click={applyCrop}>Ausschnitt speichern</button>
+                        </div>
+                    </div>
+                {/if}
+
+                {#if imagePreview && !isCropping}
                     <div class="image-preview-container">
-                        <img src={imagePreview} alt="Vorschau" class="image-preview" />
-                        <button type="button" class="btn-remove-image" on:click={removeImage}>
-                            Bild entfernen
-                        </button>
+                        <img src={imagePreview} alt="Finale Vorschau" class="image-preview final" />
+                        <div class="preview-actions">
+                            <button type="button" class="btn-remove-image" on:click={cancelCrop}>
+                                Bild löschen / Anderes wählen
+                            </button>
+                        </div>
                     </div>
                 {/if}
             </div>
         </div>
 
-        <!-- 3. Spezifikationen (Dynamisch basierend auf ui_type) -->
         {#if activeAttributes.length > 0}
             <div class="form-section dynamic-attributes">
                 <h2>Spezifikationen</h2>
@@ -155,9 +227,8 @@
                 <div class="attributes-grid">
                     {#each activeAttributes as attr}
                         <div class="form-group">
-                            <label>{attr.label}</label>
+                            <label for="attr_{attr._id}">{attr.label}</label>
                             
-                            <!-- WENN ES EIN SELECT IST -->
                             {#if attr.ui_type === 'select'}
                                 <SearchableSelect 
                                     name="attr_{attr._id}" 
@@ -165,12 +236,11 @@
                                     placeholder="{attr.label} wählen..." 
                                     multiple={attr.is_multiple} 
                                 />
-                            
-                            <!-- WENN ES EINE ZAHL IST -->
                             {:else if attr.ui_type === 'number'}
                                 <div class="input-with-unit">
                                     <input 
                                         type="number" 
+                                        id="attr_{attr._id}"
                                         name="attr_{attr._id}" 
                                         step="any" 
                                         placeholder="Zahl eingeben..." 
@@ -180,11 +250,10 @@
                                         <span class="unit-label">{attr.unit}</span>
                                     {/if}
                                 </div>
-
-                            <!-- WENN ES TEXT IST -->
                             {:else}
                                 <input 
                                     type="text" 
+                                    id="attr_{attr._id}"
                                     name="attr_{attr._id}" 
                                     placeholder="{attr.label} eingeben..." 
                                 />
@@ -209,7 +278,7 @@
         font-family: system-ui, -apple-system, sans-serif;
     }
 
-    h1 { margin-bottom: 2rem; color: #1e293b; }
+    h1 { margin-bottom: 2rem; color: #22C55E; }
     h2 { font-size: 1.25rem; margin-top: 0; margin-bottom: 1rem; color: #334155; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.5rem; }
 
     .article-form { display: flex; flex-direction: column; gap: 2rem; }
@@ -229,7 +298,6 @@
     textarea { resize: vertical; }
     input:focus, textarea:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
 
-    /* Eingabefelder mit Einheiten Styling */
     .input-with-unit {
         display: flex; align-items: center; background: white; border: 1px solid #cbd5e1;
         border-radius: 4px; padding-right: 0.8rem; transition: border-color 0.2s;
@@ -239,19 +307,73 @@
     .number-input:focus { outline: none; }
     .unit-label { color: #64748b; font-weight: 500; font-size: 0.9rem; margin-left: 0.5rem; user-select: none; }
 
-    /* Bildvorschau Styling */
+    /* Cropper & Image Preview Styling */
     .image-preview-container {
         margin-top: 0.8rem; display: flex; align-items: center; gap: 1.5rem; padding: 1rem;
         border: 1px dashed #cbd5e1; border-radius: 6px; background: #f8fafc;
     }
-    .image-preview {
-        max-width: 50px; height: auto; border-radius: 4px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    
+    .image-preview.final {
+        max-width: 300px;
+        width: 100%;
+        aspect-ratio: 16 / 9;
+        object-fit: cover;
+        border-radius: 4px; 
+        border: 1px solid #e2e8f0; 
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
+
+    .cropper-container {
+        margin-top: 1rem; padding: 1.5rem; background: #f8fafc;
+        border: 1px solid #cbd5e1; border-radius: 8px;
+    }
+    .cropper-instruction { margin-top: 0; margin-bottom: 1rem; font-weight: 500; color: #334155; }
+    .image-workspace {
+        max-height: 500px; overflow: hidden; margin-bottom: 1rem;
+        border-radius: 4px; background-color: #000;
+    }
+    .image-workspace img { display: block; max-width: 100%; }
+    
+    /* Angepasste Button-Styles */
+    .cropper-actions { display: flex; gap: 1rem; justify-content: flex-end; }
+    
+    .btn-apply { 
+        padding: 0.6rem 1.2rem; 
+        background-color: #22C55E !important; 
+        color: #ffffff !important; 
+        border: none; 
+        border-radius: 4px; 
+        font-weight: 600; 
+        font-size: 1rem;
+        cursor: pointer; 
+    }
+    .btn-apply:hover { background-color: #16a34a !important; }
+    
+    .btn-cancel { 
+        padding: 0.6rem 1.2rem; 
+        background-color: #f1f5f9 !important; 
+        color: #334155 !important; 
+        border: 1px solid #cbd5e1; 
+        border-radius: 4px; 
+        font-weight: 600; 
+        font-size: 1rem;
+        cursor: pointer; 
+    }
+    .btn-cancel:hover { background-color: #e2e8f0 !important; }
+
+    .preview-actions { display: flex; align-items: center; }
     .btn-remove-image {
-        padding: 0.5rem 1rem; background: #fee2e2; color: #991b1b; border: 1px solid #fecaca;
-        border-radius: 4px; font-size: 0.85rem; font-weight: 500; cursor: pointer; transition: all 0.2s;
+        padding: 0.6rem 1.2rem; 
+        background-color: #fee2e2 !important; 
+        color: #991b1b !important; 
+        border: 1px solid #fecaca;
+        border-radius: 4px; 
+        font-size: 0.9rem; 
+        font-weight: 600; 
+        cursor: pointer; 
+        transition: all 0.2s;
     }
-    .btn-remove-image:hover { background: #fca5a5; border-color: #f87171; }
+    .btn-remove-image:hover { background-color: #fca5a5 !important; }
 
     /* Buttons & Alerts */
     .form-actions { display: flex; justify-content: flex-end; margin-top: 1rem; }

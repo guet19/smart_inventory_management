@@ -302,7 +302,7 @@
                 required
               />
             </div>
-            <button type="submit" class="btn btn-success w-100 fw-bold"
+            <button type="submit" class="btn btn-primary w-100"
               >Hauptkategorie anlegen</button
             >
           </form>
