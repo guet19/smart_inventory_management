@@ -222,9 +222,22 @@ async function getArticles() {
         // Sortiert die neuesten Artikel nach oben (-1)
         articles = await collection.find({}).sort({ createdAt: -1 }).toArray();
         
-        // ObjectIds für Svelte in Strings umwandeln
+        // MongoDB ObjectIds und Datums-Objekte für Svelte in Strings umwandeln
         articles.forEach(article => {
-            article._id = article._id.toString();
+            if (article._id) {
+                article._id = article._id.toString();
+            }
+            if (article.mainCategoryId) {
+                // Hier lösen wir den 500er Fehler!
+                article.mainCategoryId = article.mainCategoryId.toString();
+            }
+            if (article.createdAt) {
+                // Datum in einen lesbaren String (ISO-Format) umwandeln
+                article.createdAt = article.createdAt.toISOString();
+            }
+            if (article.updatedAt) {
+                article.updatedAt = article.updatedAt.toISOString();
+            }
         });
     } catch (error) {
         console.error("Fehler beim Laden der Artikel:", error);
