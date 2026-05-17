@@ -3,7 +3,7 @@ import { DB_URI } from "$env/static/private";
 
 const client = new MongoClient(DB_URI);
 await client.connect();
-const db = client.db("Storify");
+export const db = client.db("Storify");
 
 // --- Funktionen um die Kategorien für die Kategorieeinstellungen zu laden ---
 async function getCategories() {

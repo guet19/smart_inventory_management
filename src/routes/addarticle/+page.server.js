@@ -1,101 +1,92 @@
-import db from '$lib/server/db.js';
-import { writeFile } from 'fs/promises'; 
-import { extname } from 'path';
+// src/routes/addarticle/+page.server.js
+import { error, fail } from '@sveltejs/kit';
+import { db } from '$lib/server/db'; 
+import { ObjectId } from 'mongodb';
+import { writeFileSync, mkdirSync, existsSync } from 'fs';
+import { join } from 'path';
 
 export async function load() {
-    const categories = await db.getCategories();
-    const attributes = await db.getFilterAttributes();
-    
-    return { categories, attributes };
+    try {
+        const categories = await db.collection('categories').find().toArray();
+        const attributes = await db.collection('filter_attributes').find().toArray();
+
+        return {
+            categories: JSON.parse(JSON.stringify(categories)),
+            attributes: JSON.parse(JSON.stringify(attributes))
+        };
+    } catch (e) {
+        // Schau jetzt in dein VS Code Terminal (unten), dort steht die Lösung!
+        console.error("--- DATENBANK FEHLER DIAGNOSE ---");
+        console.error("Meldung:", e.message);
+        console.error("Name:", e.name);
+        console.error("---------------------------------");
+        
+        throw error(500, `Datenbank-Details: ${e.message}`);
+    }
 }
 
 export const actions = {
     default: async ({ request }) => {
-        const formData = await request.formData();
+        const data = await request.formData();
         
-        // --- 1. Serverseitige Basis-Validierung ---
-        const title = formData.get('title');
-        const mainCategoryId = formData.get('mainCategoryId');
-        
+        const title = data.get('title');
+        const mainCategoryId = data.get('mainCategoryId');
+        const stock = parseInt(data.get('stock') || "0");
+        const imageFile = data.get('image');
+
         if (!title || !mainCategoryId) {
-            return { success: false, error: 'Titel und Hauptkategorie sind Pflichtfelder.' };
+            return fail(400, { error: "Titel und Hauptkategorie sind erforderlich." });
         }
 
-        // --- 2. Allgemeine Standardwerte ---
-        const subcategoryId = formData.get('subcategoryId');
-        const description = formData.get('description');
-        const stock = parseInt(formData.get('stock'), 10) || 0; 
-        const minStock = formData.get('minStock') ? parseInt(formData.get('minStock'), 10) : null;
-        const supplier = formData.get('supplier');
-        const orderLink = formData.get('orderLink');
-        const price = formData.get('price') ? parseFloat(formData.get('price')) : null;
-        
-        // --- 3. BILDVERARBEITUNG (Asynchron & Abgesichert) ---
-        const imageFile = formData.get('image');
-        let imagePath = null; 
+        try {
+            let imagePath = null;
 
-        if (imageFile && imageFile.size > 0) {
-            // Security: Nur echte Bilder zulassen
-            const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
-            if (!allowedTypes.includes(imageFile.type)) {
-                return { success: false, error: 'Nur JPG, PNG und WEBP Bilder sind erlaubt.' };
+            // --- Sicherstellen, dass der Upload-Ordner existiert ---
+            const uploadDir = join(process.cwd(), 'static', 'uploads');
+            if (!existsSync(uploadDir)) {
+                mkdirSync(uploadDir, { recursive: true });
             }
 
-            const ext = extname(imageFile.name) || `.${imageFile.type.split('/')[1]}`;
-            const filename = `article_${Date.now()}${ext}`;
-            const uploadPath = `static/uploads/${filename}`;
-            
-            try {
-                const buffer = Buffer.from(await imageFile.arrayBuffer());
-                await writeFile(uploadPath, buffer);
-                imagePath = `/uploads/${filename}`;
-            } catch (fsError) {
-                console.error("Fehler beim Speichern des Bildes:", fsError);
-                return { success: false, error: 'Das Bild konnte nicht gespeichert werden.' };
-            }
-        }
-
-        // --- 4. DYNAMISCHE ATTRIBUTE MIT ARRAY-SUPPORT ---
-        const attributesSchema = await db.getFilterAttributes();
-        const articleAttributes = {};
-        
-        for (const attr of attributesSchema) {
-            const fieldName = `attr_${attr._id}`;
-            
-            if (formData.has(fieldName)) {
-                const values = formData.getAll(fieldName)
-                    .map(v => String(v).trim())
-                    .filter(v => v !== '');
+            // --- Bildverarbeitung ---
+            if (imageFile && imageFile instanceof Blob && imageFile.size > 0) {
+                const filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}.jpg`;
+                const filePath = join(uploadDir, filename);
                 
-                if (values.length > 0) {
-                    articleAttributes[attr._id] = attr.is_multiple ? values : values[0];
+                const buffer = Buffer.from(await imageFile.arrayBuffer());
+                writeFileSync(filePath, buffer);
+                imagePath = `/uploads/${filename}`;
+            }
+
+            const itemAttributes = {};
+            for (const [key, value] of data.entries()) {
+                if (key.startsWith('attr_') && value) {
+                    const attrId = key.replace('attr_', '');
+                    itemAttributes[attrId] = value;
                 }
             }
-        }
-        
-        // --- 5. Finales Artikel-Objekt ---
-        const newArticle = {
-            mainCategoryId,
-            subcategoryId,
-            title,
-            description,
-            stock,
-            minStock,
-            supplier,
-            orderLink,
-            price,
-            imagePath,
-            attributes: articleAttributes,
-            createdAt: new Date()
-        };
-        
-        // --- 6. Datenbank-Speicherung ---
-        try {
-            await db.createArticle(newArticle);
-            return { success: true, message: 'Artikel erfolgreich gespeichert!' };
-        } catch (error) {
-            console.error("Fehler beim Speichern des Artikels in DB:", error);
-            return { success: false, error: 'Fehler beim Speichern in der Datenbank.' };
+
+            const newArticle = {
+                title,
+                description: data.get('description'),
+                mainCategoryId: new ObjectId(mainCategoryId),
+                subcategoryId: data.get('subcategoryId') || null,
+                stock,
+                supplier: data.get('supplier'),
+                price: parseFloat(data.get('price') || "0"),
+                orderLink: data.get('orderLink'),
+                imagePath,
+                attributes: itemAttributes,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            };
+
+            await db.collection('articles').insertOne(newArticle);
+
+            return { success: true, message: "Artikel erfolgreich gespeichert!" };
+            
+        } catch (e) {
+            console.error("Speicherfehler:", e);
+            return fail(500, { error: "Fehler beim Speichern in der Datenbank." });
         }
     }
 };
