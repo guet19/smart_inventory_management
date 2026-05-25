@@ -18,7 +18,7 @@
 	  <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
 		<div class="navbar-nav">
 			<a class="nav-link " class:active={$page.url.pathname === '/'} href="/">Inventar</a>
-			<a class="nav-link " class:active={$page.url.pathname === '/einstellungen'} href="/einstellungen">Einstellungen</a>
+			<a class="nav-link " class:active={$page.url.pathname === '/einstellungen'} href="/einstellungen">Kategorien/Filter verwalten </a>
 		</div>
 	  </div>
 	</div>

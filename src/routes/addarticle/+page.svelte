@@ -4,6 +4,7 @@
     import { enhance } from "$app/forms";
     import SearchableSelect from "$lib/components/SearchableSelect.svelte";
     import { page } from "$app/stores";
+    import { goto } from "$app/navigation"; 
 
     import "cropperjs/dist/cropper.css";
     import Cropper from "cropperjs";
@@ -22,32 +23,38 @@
     let importUrl = "";
     let isExtracting = false;
 
-    // Zwischenspeicher für den Text aus dem Bookmarklet
+    // --- Variablen für den optionalen Stückpreis-Rechner ---
+    let totalPackPrice = "";
+    let packQuantity = "";
+
+    $: if (totalPackPrice && packQuantity && parseFloat(packQuantity) > 0) {
+        price = (parseFloat(totalPackPrice) / parseFloat(packQuantity)).toFixed(2);
+    }
+
     let rawImportText = "";
-
-    // NEU: Speichert das Bild aus dem Bookmarklet
     let importedImageUrl = "";
-
-    // Objekt zum Speichern der dynamischen Attribut-Werte (KI-Mapping)
     let attributeValues = {};
 
     let selectedMainCategoryId = "";
     let selectedSubcategoryId = "";
 
+    let formErrors = {};
+    let showSuccessMessage = false;
+
+    let numberWarnings = {};
+    let warningTimeouts = {};
+
+    // --- Bookmarklet & KI Workflow States ---
+    let isFromBookmarklet = false;
+    let aiChoiceMade = false;
+    let showAIPrompt = false;
+    let showAIWarning = false;
+
     // Kategorien-Logik
-    $: mainCategoryOptions = categories.map((cat) => ({
-        value: cat._id,
-        label: cat.name,
-    }));
-    $: selectedMainCategory =
-        categories.find((cat) => cat._id === selectedMainCategoryId) || null;
-    $: availableSubcategories = selectedMainCategory
-        ? selectedMainCategory.subcategories
-        : [];
-    $: subCategoryOptions = availableSubcategories.map((sub) => ({
-        value: sub.id,
-        label: sub.name,
-    }));
+    $: mainCategoryOptions = categories.map((cat) => ({ value: cat._id, label: cat.name }));
+    $: selectedMainCategory = categories.find((cat) => cat._id === selectedMainCategoryId) || null;
+    $: availableSubcategories = selectedMainCategory ? selectedMainCategory.subcategories : [];
+    $: subCategoryOptions = availableSubcategories.map((sub) => ({ value: sub.id, label: sub.name }));
 
     // Reset der Unterkategorie & Attribute bei Wechsel der Hauptkategorie
     $: if (selectedMainCategoryId) {
@@ -55,16 +62,9 @@
         attributeValues = {};
     }
 
-    $: selectedSubcategory =
-        availableSubcategories.find(
-            (sub) => sub.id === selectedSubcategoryId,
-        ) || null;
-
-    // Die Attribute, die zur gewählten Unterkategorie gehören
+    $: selectedSubcategory = availableSubcategories.find((sub) => sub.id === selectedSubcategoryId) || null;
     $: activeAttributes = selectedSubcategory
-        ? attributes.filter((attr) =>
-              selectedSubcategory.allowed_attributes.includes(attr._id),
-          )
+        ? attributes.filter((attr) => selectedSubcategory.allowed_attributes.includes(attr._id))
         : [];
 
     // --- REAKTIVER URL-IMPORT (Bookmarklet Empfang) ---
@@ -73,31 +73,50 @@
         const urlTitle = urlParams.get("title");
         const urlSource = urlParams.get("url");
         const urlDesc = urlParams.get("desc");
-        const urlImg = urlParams.get("img"); // Das Bild aus dem Lesezeichen lesen
+        const urlImg = urlParams.get("img"); 
 
-        // searchParams.get() decodiert bereits automatisch!
+        if (urlTitle || urlSource || urlDesc || urlImg) {
+            isFromBookmarklet = true;
+        }
+
         if (urlTitle && !title) title = urlTitle;
         if (urlSource && !orderLink) {
             orderLink = urlSource;
             importUrl = orderLink;
-            // Text speichern für den manuellen KI-Trigger später
             rawImportText = urlDesc || "";
         }
         if (urlImg && !importedImageUrl) {
-            importedImageUrl = urlImg; // Bild-Link speichern
+            importedImageUrl = urlImg;
         }
+    }
+
+    // --- Trigger für die automatisierte KI-Frage ---
+    $: if (isFromBookmarklet && !aiChoiceMade) {
+        let isComplete = false;
+        if (selectedMainCategoryId) {
+            if (subCategoryOptions.length > 0) {
+                if (selectedSubcategoryId) isComplete = true;
+            } else {
+                isComplete = true;
+            }
+        }
+        showAIPrompt = isComplete;
+    }
+
+    // --- KI Auswahl-Logik ---
+    function acceptAI() {
+        showAIPrompt = false;
+        aiChoiceMade = true;
+        handleEnhancedImport();
+    }
+
+    function declineAI() {
+        showAIPrompt = false;
+        aiChoiceMade = true;
     }
 
     // --- MANUELLER KI-IMPORT ---
     async function handleEnhancedImport() {
-        if (!selectedSubcategoryId) {
-            if (browser)
-                alert(
-                    "Bitte wähle zuerst eine Haupt- und Unterkategorie, damit die KI weiß, welche Spezifikationen gesucht werden!",
-                );
-            return;
-        }
-
         isExtracting = true;
         try {
             const res = await fetch("/api/extract-article", {
@@ -121,15 +140,11 @@
                 if (result.price) price = result.price;
                 if (result.supplier) supplier = result.supplier;
 
-                // Mappe die KI-Ergebnisse (IDs) direkt in das Formular-Objekt
                 if (result.specs) {
                     attributeValues = { ...attributeValues, ...result.specs };
                 }
 
-                // --- Automatisches Bild priorisieren ---
-                // Er nimmt zuerst das Bild vom Bookmarklet, ansonsten das von der KI
                 const imageToLoad = importedImageUrl || result.finalImageUrl;
-
                 if (imageToLoad && !imagePreview) {
                     await loadExternalImage(imageToLoad);
                 }
@@ -139,7 +154,29 @@
             if (browser) alert("Fehler bei der KI-Analyse.");
         } finally {
             isExtracting = false;
+            showAIWarning = true;
         }
+    }
+
+    // --- Zahlen-Eingabe-Validierung ---
+    function handleNumberInput(event, attrId) {
+        const originalValue = event.target.value;
+        const sanitizedValue = originalValue.replace(/[^0-9.,]/g, '');
+        
+        if (originalValue !== sanitizedValue) {
+            event.target.value = sanitizedValue; 
+            
+            numberWarnings[attrId] = true;
+            numberWarnings = { ...numberWarnings }; 
+            
+            if (warningTimeouts[attrId]) clearTimeout(warningTimeouts[attrId]);
+            
+            warningTimeouts[attrId] = setTimeout(() => {
+                numberWarnings[attrId] = false;
+                numberWarnings = { ...numberWarnings };
+            }, 3000);
+        }
+        attributeValues[attrId] = sanitizedValue;
     }
 
     // --- Bild-Handling ---
@@ -158,84 +195,50 @@
         isCropping = true;
         await tick();
         if (cropperInstance) cropperInstance.destroy();
-        cropperInstance = new Cropper(cropperImageEl, {
-            aspectRatio: 4 / 3,
-            viewMode: 2,
-            background: false,
-            zoomable: false,
-        });
+        cropperInstance = new Cropper(cropperImageEl, { aspectRatio: 4 / 3, viewMode: 2, background: false, zoomable: false });
     }
 
-    // --- Externes Bild über deinen internen Proxy laden ---
     async function loadExternalImage(imageUrl) {
         try {
-            // Wenn das Lesezeichen ein Base64 Bild gefunden hat, ignoriere den Proxy
             if (imageUrl.startsWith("data:image")) {
                 const response = await fetch(imageUrl);
                 const blob = await response.blob();
                 processImageBlob(blob);
                 return;
             }
-
-            console.log("Lade Bild über internen Proxy:", imageUrl);
-            // Ruft die neue src/routes/api/fetch-image/+server.js auf
             const proxyUrl = `/api/fetch-image?url=${encodeURIComponent(imageUrl)}`;
             const response = await fetch(proxyUrl);
-
             if (!response.ok) throw new Error("Interner Proxy fehlgeschlagen");
-
             const blob = await response.blob();
             processImageBlob(blob);
         } catch (error) {
-            console.error("Konnte automatisches Bild nicht laden:", error);
-            if (browser)
-                alert(
-                    "Das Produktbild wurde vom Shop blockiert. Bitte lade es manuell hoch.",
-                );
+            console.error("Bild blockiert:", error);
         }
     }
 
-    // Hilfsfunktion zum Verarbeiten des Blobs für den Cropper
     async function processImageBlob(blob) {
         if (imagePreview) URL.revokeObjectURL(imagePreview);
         imagePreview = URL.createObjectURL(blob);
         isCropping = true;
         await tick();
-
         if (cropperInstance) cropperInstance.destroy();
-        cropperInstance = new Cropper(cropperImageEl, {
-            aspectRatio: 4 / 3,
-            viewMode: 2,
-            background: false,
-            zoomable: false,
-        });
+        cropperInstance = new Cropper(cropperImageEl, { aspectRatio: 4 / 3, viewMode: 2, background: false, zoomable: false });
     }
 
     function applyCrop() {
         if (!cropperInstance) return;
-        const canvas = cropperInstance.getCroppedCanvas({
-            width: 1280,
-            height: 720,
-        });
-        canvas.toBlob(
-            (blob) => {
-                croppedFileBlob = blob;
-                if (imagePreview) URL.revokeObjectURL(imagePreview);
-                imagePreview = URL.createObjectURL(blob);
-                cropperInstance.destroy();
-                cropperInstance = null;
-                isCropping = false;
-            },
-            "image/jpeg",
-            0.85,
-        );
+        const canvas = cropperInstance.getCroppedCanvas({ width: 1200, height: 900 }); 
+        canvas.toBlob((blob) => {
+            croppedFileBlob = blob;
+            if (imagePreview) URL.revokeObjectURL(imagePreview);
+            imagePreview = URL.createObjectURL(blob);
+            cropperInstance.destroy(); cropperInstance = null; isCropping = false;
+        }, "image/jpeg", 0.85);
     }
 
     function cancelCrop() {
         if (cropperInstance) cropperInstance.destroy();
-        isCropping = false;
-        imagePreview = null;
-        croppedFileBlob = null;
+        isCropping = false; imagePreview = null; croppedFileBlob = null;
         if (fileInputElement) fileInputElement.value = "";
     }
 
@@ -245,11 +248,31 @@
     });
 </script>
 
+{#if isExtracting || showAIWarning}
+    <div class="modal-fullscreen-backdrop"></div>
+{/if}
+
+{#if isExtracting}
+    <div class="overlay-modal">
+        <div class="spinner"></div>
+        <p class="modal-text">Daten werden ausgelesen und zugeordnet.<br>Bitte warten....</p>
+    </div>
+{/if}
+
+{#if showAIWarning}
+    <div class="overlay-modal">
+        <div class="warning-icon">⚠️</div>
+        <p class="modal-text">KI kann Fehler machen, bitte überprüfen Sie die zugewiesenen Informationen!</p>
+        <button type="button" class="btn-confirm-warning" on:click={() => showAIWarning = false}>Bestätigen</button>
+    </div>
+{/if}
+
+
 <div class="page-container">
     <h1>Neuen Artikel anlegen</h1>
 
-    {#if form?.success}
-        <div class="alert success">{form.message}</div>
+    {#if showSuccessMessage || form?.success}
+        <div class="alert success">{form?.message || "Artikel erfolgreich gespeichert!"}</div>
     {/if}
     {#if form?.error}
         <div class="alert error">{form.error}</div>
@@ -259,123 +282,131 @@
         method="POST"
         class="article-form"
         enctype="multipart/form-data"
-        use:enhance={({ formData }) => {
-            if (croppedFileBlob)
-                formData.set("image", croppedFileBlob, "article.jpg");
+        novalidate
+        use:enhance={({ formData, cancel }) => {
+            formErrors = {};
+            let hasError = false;
+
+            if (!selectedMainCategoryId) { formErrors.mainCategory = true; hasError = true; }
+            if (subCategoryOptions.length > 0 && !selectedSubcategoryId) { formErrors.subCategory = true; hasError = true; }
+            if (!title.trim()) { formErrors.title = true; hasError = true; }
+            if (!description.trim()) { formErrors.description = true; hasError = true; }
+            // GEÄNDERT: Die subtitle.trim() Bedingung war falsch und wurde entfernt
+            if (!formData.get("istBestand")) { formErrors.istBestand = true; hasError = true; }
+            
+            if (hasError) {
+                cancel();
+                setTimeout(() => {
+                    const firstErrorElement = document.querySelector('.error-highlight');
+                    if (firstErrorElement) firstErrorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 50);
+                return;
+            }
+
+            if (croppedFileBlob) formData.set("image", croppedFileBlob, "article.jpg");
+
+            return async ({ result, update }) => {
+                if (result.type === "success") {
+                    goto("/?success=true");
+                } else {
+                    await update();
+                }
+            };
         }}
     >
         <div class="form-section">
             <h2>1. Kategorisierung festlegen</h2>
-            <div class="form-group">
+            
+            <div class="form-group tooltip-container">
                 <span class="label-text">Hauptkategorie *</span>
-                <SearchableSelect
-                    name="mainCategoryId"
-                    options={mainCategoryOptions}
-                    bind:value={selectedMainCategoryId}
-                    placeholder="Wählen..."
-                />
+                <div class="select-wrapper" class:error-highlight={formErrors.mainCategory || (isFromBookmarklet && !aiChoiceMade && !selectedMainCategoryId)}>
+                    <SearchableSelect name="mainCategoryId" options={mainCategoryOptions} bind:value={selectedMainCategoryId} placeholder="Wählen..." />
+                </div>
+                {#if isFromBookmarklet && !aiChoiceMade && !selectedMainCategoryId}
+                    <div class="info-bubble">Bitte auswählen</div>
+                {/if}
             </div>
 
             {#if subCategoryOptions.length > 0}
-                <div class="form-group">
+                <div class="form-group tooltip-container">
                     <span class="label-text">Unterkategorie *</span>
-                    <SearchableSelect
-                        name="subcategoryId"
-                        options={subCategoryOptions}
-                        bind:value={selectedSubcategoryId}
-                        placeholder="Wählen..."
-                    />
+                    <div class="select-wrapper" class:error-highlight={formErrors.subCategory || (isFromBookmarklet && !aiChoiceMade && selectedMainCategoryId && !selectedSubcategoryId)}>
+                        <SearchableSelect name="subcategoryId" options={subCategoryOptions} bind:value={selectedSubcategoryId} placeholder="Wählen..." />
+                    </div>
+                    {#if isFromBookmarklet && !aiChoiceMade && selectedMainCategoryId && !selectedSubcategoryId}
+                        <div class="info-bubble">Bitte auswählen</div>
+                    {/if}
                 </div>
             {/if}
         </div>
 
-        {#if rawImportText || importUrl}
-            <div class="ai-trigger-section">
-                <p class="ai-hint">
-                    Webseiten-Daten erkannt. Wähle eine Unterkategorie und
-                    starte die KI-Analyse.
-                </p>
-                <button
-                    type="button"
-                    class="btn-ai"
-                    on:click={handleEnhancedImport}
-                    disabled={isExtracting || !selectedSubcategoryId}
-                >
-                    {isExtracting
-                        ? "Analysiere Daten & Bilder..."
-                        : "✨ KI: Produktdaten & Spezifikationen extrahieren"}
-                </button>
+        {#if showAIPrompt}
+            <div class="ai-prompt-box">
+                <h3>Möchten Sie mit Hilfe der Webseitdaten automatisch ein Produkt anlegen?</h3>
+                <div class="ai-prompt-actions">
+                    <button type="button" class="btn-ai-yes" on:click={acceptAI}>Ja</button>
+                    <button type="button" class="btn-ai-no" on:click={declineAI}>Produktdaten manuell ausfüllen</button>
+                </div>
             </div>
         {/if}
 
-        <div class="form-section">
+        <div class="form-section" style={isFromBookmarklet && !aiChoiceMade ? "opacity: 0.5; pointer-events: none;" : ""}>
             <h2>Allgemeine Informationen</h2>
             <div class="form-group">
-                <label for="title" class="label-text"
-                    >Artikelbezeichnung *</label
-                >
-                <input
-                    type="text"
-                    id="title"
-                    name="title"
-                    bind:value={title}
-                    required
-                />
+                <label for="title" class="label-text">Artikelbezeichnung *</label>
+                <input type="text" id="title" name="title" bind:value={title} class:error-highlight={formErrors.title} required />
             </div>
 
             <div class="form-group">
-                <label for="description" class="label-text"
-                    >Beschreibung *</label
-                >
-                <textarea
-                    id="description"
-                    name="description"
-                    bind:value={description}
-                    rows="6"
-                    required
-                ></textarea>
+                <label for="description" class="label-text">Beschreibung *</label>
+                <textarea id="description" name="description" bind:value={description} rows="6" class:error-highlight={formErrors.description} required></textarea>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.2rem;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label for="istBestand" class="label-text">Ist-Bestand *</label>
+                    <input 
+                        type="number" 
+                        id="istBestand" 
+                        name="istBestand" 
+                        min="0" 
+                        class:error-highlight={formErrors.istBestand} 
+                        required 
+                    />
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label for="sollBestand" class="label-text">Soll-Bestand</label>
+                    <input type="number" id="sollBestand" name="sollBestand" min="0" />
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label for="mindestBestand" class="label-text">Mindestbestand</label>
+                    <input type="number" id="mindestBestand" name="mindestBestand" min="0" />
+                </div>
             </div>
 
             <div class="attributes-grid">
                 <div class="form-group">
-                    <label for="stock" class="label-text">Bestand *</label>
-                    <input
-                        type="number"
-                        id="stock"
-                        name="stock"
-                        min="0"
-                        required
-                    />
-                </div>
-                <div class="form-group">
                     <label for="supplier" class="label-text">Lieferant</label>
-                    <input
-                        type="text"
-                        id="supplier"
-                        name="supplier"
-                        bind:value={supplier}
-                    />
+                    <input type="text" id="supplier" name="supplier" bind:value={supplier} />
                 </div>
+                
                 <div class="form-group">
-                    <label for="price" class="label-text">Preis (CHF)</label>
-                    <input
-                        type="number"
-                        id="price"
-                        name="price"
-                        step="0.01"
-                        bind:value={price}
-                    />
+                    <label for="price" class="label-text">Preis pro Stück (CHF)</label>
+                    <input type="number" id="price" name="price" step="0.01" bind:value={price} />
+                    
+                    <div style="margin-top: 0.4rem; padding: 0.5rem; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 6px; display: flex; flex-direction: column; gap: 0.3rem;">
+                        <span style="font-size: 0.75rem; font-weight: 600; color: #64748b;">Packungs-Rechner (optional):</span>
+                        <div style="display: flex; gap: 0.4rem;">
+                            <input type="number" placeholder="Gesamtpreis" step="0.01" bind:value={totalPackPrice} style="font-size: 0.8rem; padding: 0.3rem; height: auto;" />
+                            <input type="number" placeholder="Anzahl Stk." min="1" bind:value={packQuantity} style="font-size: 0.8rem; padding: 0.3rem; height: auto;" />
+                        </div>
+                    </div>
                 </div>
             </div>
 
             <div class="form-group" style="margin-top: 1rem;">
                 <label for="orderLink" class="label-text">Bestelllink</label>
-                <input
-                    type="url"
-                    id="orderLink"
-                    name="orderLink"
-                    bind:value={orderLink}
-                />
+                <input type="url" id="orderLink" name="orderLink" bind:value={orderLink} />
             </div>
 
             <div class="image-area">
@@ -383,73 +414,33 @@
 
                 {#if !isCropping && !imagePreview}
                     <div class="file-upload-wrapper" style="margin-top: 0.5rem;">
-                        <input
-                            type="file"
-                            id="image"
-                            accept="image/*"
-                            bind:this={fileInputElement}
-                            on:change={handleImageSelect}
-                        />
+                        <input type="file" id="image" accept="image/*" bind:this={fileInputElement} on:change={handleImageSelect} />
                     </div>
                 {/if}
 
                 {#if isCropping}
-                    <div
-                        class="crop-editor-box"
-                        style="margin-top: 1rem; border: 1px solid #e2e8f0; padding: 1rem; border-radius: 8px;"
-                    >
+                    <div class="crop-editor-box" style="margin-top: 1rem; border: 1px solid #e2e8f0; padding: 1rem; border-radius: 8px;">
                         <div class="image-workspace" style="margin-bottom: 1rem;">
-                            <img
-                                bind:this={cropperImageEl}
-                                src={imagePreview}
-                                alt="Zuschneiden"
-                            />
+                            <img bind:this={cropperImageEl} src={imagePreview} alt="Zuschneiden" />
                         </div>
-
                         <div class="cropper-actions" style="display: flex; gap: 1rem; justify-content: flex-end;">
-                            <button
-                                type="button"
-                                class="btn-cancel"
-                                on:click={cancelCrop}
-                                style="color: white; font-weight: bold;"
-                            >
-                                Abbrechen
-                            </button>
-                            <button
-                                type="button"
-                                class="btn-apply"
-                                on:click={applyCrop}
-                                style="color: white; font-weight: bold;"
-                            >
-                                Speichern
-                            </button>
+                            <button type="button" class="btn-cancel" on:click={cancelCrop} style="color: white; font-weight: bold;">Abbrechen</button>
+                            <button type="button" class="btn-apply" on:click={applyCrop} style="color: white; font-weight: bold;">Speichern</button>
                         </div>
                     </div>
                 {/if}
 
                 {#if imagePreview && !isCropping}
                     <div class="preview-wrap" style="margin-top: 1rem;">
-                        <img
-                            src={imagePreview}
-                            alt="Vorschau"
-                            class="final-preview"
-                        />
-
-                        <button
-                            type="button"
-                            class="btn-remove"
-                            on:click={cancelCrop}
-                            style="font-weight: bold;"
-                        >
-                            Bild löschen
-                        </button>
+                        <img src={imagePreview} alt="Vorschau" class="final-preview" />
+                        <button type="button" class="btn-remove" on:click={cancelCrop} style="font-weight: bold;">Bild löschen</button>
                     </div>
                 {/if}
             </div>
         </div>
 
         {#if activeAttributes.length > 0}
-            <div class="form-section">
+            <div class="form-section" style={isFromBookmarklet && !aiChoiceMade ? "opacity: 0.5; pointer-events: none;" : ""}>
                 <h2>Spezifikationen</h2>
                 <div class="attributes-grid">
                     {#each activeAttributes as attr}
@@ -459,20 +450,46 @@
                                 <div>
                                     <SearchableSelect
                                         name="attr_{attr._id}"
-                                        options={(attr.options || []).map(
-                                            (o) => ({ value: o, label: o }),
-                                        )}
+                                        options={(attr.options || []).map((o) => ({ value: o, label: o }))}
                                         multiple={attr.is_multiple}
                                         bind:value={attributeValues[attr._id]}
                                     />
                                 </div>
                             {:else}
-                                <input
-                                    type="text"
-                                    id="attr_{attr._id}"
-                                    name="attr_{attr._id}"
-                                    bind:value={attributeValues[attr._id]}
-                                />
+                                <div class="tooltip-container" style="display: flex; flex-direction: column; gap: 0.3rem;">
+                                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                        {#if attr.ui_type === "number"}
+                                            <input
+                                                type="text"
+                                                inputmode="decimal"
+                                                id="attr_{attr._id}"
+                                                name="attr_{attr._id}"
+                                                bind:value={attributeValues[attr._id]}
+                                                on:input={(e) => handleNumberInput(e, attr._id)}
+                                                class:error-highlight={numberWarnings[attr._id]}
+                                                style="flex-grow: 1; transition: all 0.2s;"
+                                            />
+                                        {:else}
+                                            <input
+                                                type="text"
+                                                id="attr_{attr._id}"
+                                                name="attr_{attr._id}"
+                                                bind:value={attributeValues[attr._id]}
+                                                style="flex-grow: 1;"
+                                            />
+                                        {/if}
+
+                                        {#if attr.unit}
+                                            <span style="color: #64748b; font-weight: 600; font-size: 0.95rem; white-space: nowrap;">
+                                                {attr.unit}
+                                            </span>
+                                        {/if}
+                                    </div>
+                                    
+                                    {#if attr.ui_type === "number" && numberWarnings[attr._id]}
+                                        <div class="warning-bubble">Nur Zahlen, Punkt oder Komma!</div>
+                                    {/if}
+                                </div>
                             {/if}
                         </div>
                     {/each}
@@ -489,180 +506,116 @@
 </div>
 
 <style>
-    .page-container {
-        max-width: 800px;
-        margin: 0 auto;
-        padding: 2rem 1rem;
+    /* Generelles Layout */
+    .page-container { max-width: 800px; margin: 0 auto; padding: 2rem 1rem; }
+    h1 { color: #16a34a; margin-bottom: 2rem; font-size: 1.8rem; }
+    h2 { font-size: 1.1rem; color: #475569; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5rem; margin-bottom: 1.5rem; }
+    .form-section { background: white; padding: 1.5rem; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 2rem; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); transition: opacity 0.3s; }
+    .form-group { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1.2rem; }
+    .attributes-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.2rem; }
+
+    /* Tooltips und Blasen */
+    .tooltip-container { position: relative !important; overflow: visible !important; }
+    
+    .info-bubble {
+        position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+        background-color: #3b82f6; color: white; padding: 5px 10px; border-radius: 6px;
+        font-size: 0.75rem; font-weight: 700; white-space: nowrap; z-index: 999;
+        box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3); pointer-events: none;
+        animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
     }
-    h1 {
-        color: #16a34a;
-        margin-bottom: 2rem;
-        font-size: 1.8rem;
-    }
-    h2 {
-        font-size: 1.1rem;
-        color: #475569;
-        border-bottom: 1px solid #e2e8f0;
-        padding-bottom: 0.5rem;
-        margin-bottom: 1.5rem;
-    }
-    .form-section {
-        background: white;
-        padding: 1.5rem;
-        border-radius: 12px;
-        border: 1px solid #e2e8f0;
-        margin-bottom: 2rem;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-    }
-    .form-group {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-        margin-bottom: 1.2rem;
-    }
-    .attributes-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 1.2rem;
+    .info-bubble::after {
+        content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+        border-width: 5px; border-style: solid; border-color: #3b82f6 transparent transparent transparent;
     }
 
-    /* KI Button Styling */
-    .ai-trigger-section {
-        background: #f0fdf4;
-        border: 1px solid #bbf7d0;
-        padding: 1.5rem;
-        border-radius: 12px;
-        margin-bottom: 2rem;
-        text-align: center;
+    .warning-bubble {
+        position: absolute; bottom: calc(100% + 4px); left: 50%; transform: translateX(-50%);
+        background-color: #ef4444; color: white; padding: 5px 9px; border-radius: 6px;
+        font-size: 0.75rem; font-weight: 700; white-space: nowrap; z-index: 999;
+        box-shadow: 0 4px 10px rgba(239, 68, 68, 0.25); pointer-events: none;
+        animation: popIn 0.18s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
     }
-    .ai-hint {
-        color: #166534;
-        font-size: 0.9rem;
-        margin-top: 0;
-        margin-bottom: 1rem;
-        font-weight: 500;
-    }
-    .btn-ai {
-        background: #22c55e;
-        color: white;
-        border: none;
-        padding: 0.8rem 1.5rem;
-        border-radius: 8px;
-        font-weight: bold;
-        cursor: pointer;
-        font-size: 1rem;
-        transition: background 0.2s;
-    }
-    .btn-ai:hover:not(:disabled) {
-        background: #16a34a;
-    }
-    .btn-ai:disabled {
-        background: #94a3b8;
-        cursor: not-allowed;
-        opacity: 0.7;
+    .warning-bubble::after {
+        content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+        border-width: 5px; border-style: solid; border-color: #ef4444 transparent transparent transparent;
     }
 
-    .label-text {
-        font-size: 0.85rem;
-        font-weight: 600;
-        color: #64748b;
+    @keyframes popIn {
+        0% { opacity: 0; transform: translate(-50%, 4px) scale(0.93); }
+        100% { opacity: 1; transform: translate(-50%, 0) scale(1); }
     }
-    input,
-    textarea {
-        padding: 0.6rem;
-        border: 1px solid #cbd5e1;
-        border-radius: 6px;
-        font-size: 1rem;
-        width: 100%;
-        box-sizing: border-box;
+
+    .error-highlight {
+        border-color: #ef4444 !important;
+        background-color: #fef2f2 !important;
+        box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+        transition: all 0.3s ease;
     }
-    .image-area {
-        margin-top: 1rem;
-        padding-top: 1rem;
-        border-top: 1px solid #f1f5f9;
+    .select-wrapper { border-radius: 6px; transition: all 0.3s; }
+
+    /* AI Prompt Box Styling */
+    .ai-prompt-box {
+        background: #eff6ff; border: 2px solid #3b82f6; padding: 1.5rem; border-radius: 12px;
+        margin-bottom: 2rem; text-align: center; box-shadow: 0 4px 15px rgba(59,130,246,0.15);
+        animation: slideDown 0.3s ease-out;
     }
-    .image-workspace {
-        max-height: 400px;
-        background: #0f172a;
-        border-radius: 8px;
-        overflow: hidden;
-        margin-bottom: 1rem;
+    .ai-prompt-box h3 { color: #1e3a8a; margin-top: 0; margin-bottom: 1.5rem; font-size: 1.15rem; }
+    .ai-prompt-actions { display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; }
+    
+    .btn-ai-yes { background: #22c55e; color: white; border: none; padding: 0.8rem 2rem; border-radius: 8px; font-weight: bold; font-size: 1rem; cursor: pointer; transition: background 0.2s; }
+    .btn-ai-yes:hover { background: #16a34a; }
+    
+    .btn-ai-no { background: #94a3b8; color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 8px; font-weight: bold; font-size: 1rem; cursor: pointer; transition: background 0.2s; }
+    .btn-ai-no:hover { background: #64748b; }
+
+    @keyframes slideDown { 0% { opacity: 0; transform: translateY(-10px); } 100% { opacity: 1; transform: translateY(0); } }
+
+    /* Overlays (Laden & Warnung) */
+    .modal-fullscreen-backdrop {
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(3px); z-index: 10000;
     }
-    .image-workspace img {
-        display: block;
-        max-width: 100%;
+    .overlay-modal {
+        position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        background: white; border-radius: 12px; width: 90%; max-width: 400px; padding: 2.5rem 2rem;
+        text-align: center; z-index: 10001; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+        animation: popIn 0.2s ease-out forwards;
     }
-    .cropper-actions {
-        display: flex;
-        gap: 0.5rem;
-        justify-content: flex-end;
+    .modal-text { font-size: 1.1rem; color: #1e293b; font-weight: 600; margin: 0; line-height: 1.5; }
+    .warning-icon { font-size: 3rem; margin-bottom: 1rem; }
+    
+    .spinner {
+        width: 45px; height: 45px; margin: 0 auto 1.5rem auto;
+        border: 4px solid #f1f5f9; border-top: 4px solid #3b82f6;
+        border-radius: 50%; animation: spin 1s linear infinite;
     }
-    .btn-apply {
-        background: #16a34a;
-        color: white;
-        border: none;
-        padding: 0.5rem 1rem;
-        border-radius: 6px;
-        cursor: pointer;
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    .btn-confirm-warning {
+        background: #3b82f6; color: white; border: none; padding: 0.8rem 2rem;
+        border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 1.5rem; font-size: 1rem;
     }
-    .btn-cancel {
-        background: #94a3b8;
-        color: white;
-        border: none;
-        padding: 0.5rem 1rem;
-        border-radius: 6px;
-        cursor: pointer;
-    }
-    .final-preview {
-        max-width: 100%;
-        height: auto;
-        border-radius: 8px;
-        border: 1px solid #e2e8f0;
-    }
-    .btn-remove {
-        display: block;
-        margin-top: 0.5rem;
-        background: #fee2e2;
-        color: #991b1b;
-        border: 1px solid #fecaca;
-        padding: 0.4rem 0.8rem;
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 0.8rem;
-    }
-    .btn-submit {
-        background: #1e293b;
-        color: white;
-        padding: 1rem;
-        border: none;
-        border-radius: 8px;
-        font-weight: 700;
-        cursor: pointer;
-        width: 100%;
-        font-size: 1rem;
-    }
-    .btn-submit:hover:not(:disabled) {
-        background: #0f172a;
-    }
-    .btn-submit:disabled {
-        background: #94a3b8;
-        cursor: not-allowed;
-    }
-    .alert {
-        padding: 1rem;
-        border-radius: 8px;
-        margin-bottom: 1.5rem;
-        text-align: center;
-        font-weight: 600;
-    }
-    .success {
-        background: #dcfce7;
-        color: #166534;
-        border: 1px solid #bbf7d0;
-    }
-    .error {
-        background: #fee2e2;
-        color: #b91c1c;
-        border: 1px solid #fecaca;
-    }
+    .btn-confirm-warning:hover { background: #2563eb; }
+
+    /* Standard Formular-Styling */
+    .label-text { font-size: 0.85rem; font-weight: 600; color: #64748b; }
+    input, textarea { padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 1rem; width: 100%; box-sizing: border-box; }
+    
+    .image-area { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #f1f5f9; }
+    .image-workspace { max-height: 400px; background: #0f172a; border-radius: 8px; overflow: hidden; margin-bottom: 1rem; }
+    .image-workspace img { display: block; max-width: 100%; }
+    .cropper-actions { display: flex; gap: 0.5rem; justify-content: flex-end; }
+    .btn-apply { background: #16a34a; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; }
+    .btn-cancel { background: #94a3b8; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; }
+    .final-preview { max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #e2e8f0; }
+    .btn-remove { display: block; margin-top: 0.5rem; background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; padding: 0.4rem 0.8rem; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
+    
+    .btn-submit { background: #1e293b; color: white; padding: 1rem; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; width: 100%; font-size: 1rem; }
+    .btn-submit:hover:not(:disabled) { background: #0f172a; }
+    .btn-submit:disabled { background: #94a3b8; cursor: not-allowed; }
+    
+    .alert { padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; text-align: center; font-weight: 600; }
+    .success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+    .error { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
 </style>

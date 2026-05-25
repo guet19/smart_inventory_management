@@ -15,7 +15,7 @@ export async function load() {
             attributes: JSON.parse(JSON.stringify(attributes))
         };
     } catch (e) {
-        // Schau jetzt in dein VS Code Terminal (unten), dort steht die Lösung!
+        // Konsolen-Ausgabe für einfacheres Debugging
         console.error("--- DATENBANK FEHLER DIAGNOSE ---");
         console.error("Meldung:", e.message);
         console.error("Name:", e.name);
@@ -29,16 +29,28 @@ export const actions = {
     default: async ({ request }) => {
         const data = await request.formData();
         
+        // 1. Basis-Daten auslesen
         const title = data.get('title');
         const mainCategoryId = data.get('mainCategoryId');
-        const stock = parseInt(data.get('stock') || "0");
+        
+        // Den rohen Ist-Bestand für die Pflichtfeld-Prüfung auslesen
+        const istBestandRaw = data.get('istBestand');
+        
         const imageFile = data.get('image');
 
-        if (!title || !mainCategoryId) {
-            return fail(400, { error: "Titel und Hauptkategorie sind erforderlich." });
+        // 2. Server-seitige Pflichtfeld-Validierung (inklusive Ist-Bestand)
+        if (!title || !mainCategoryId || istBestandRaw === null || istBestandRaw === '') {
+            return fail(400, { error: "Titel, Hauptkategorie und Ist-Bestand sind erforderlich." });
         }
 
         try {
+            // 3. Bestände sauber in Zahlen (Integer) umwandeln
+            const istBestand = parseInt(istBestandRaw, 10);
+            
+            // Wenn Soll- oder Mindestbestand leer sind, speichern wir 'null'
+            const sollBestand = data.get('sollBestand') ? parseInt(data.get('sollBestand'), 10) : null;
+            const mindestBestand = data.get('mindestBestand') ? parseInt(data.get('mindestBestand'), 10) : null;
+
             let imagePath = null;
 
             // --- Sicherstellen, dass der Upload-Ordner existiert ---
@@ -57,6 +69,7 @@ export const actions = {
                 imagePath = `/uploads/${filename}`;
             }
 
+            // --- Dynamische Attribute auslesen ---
             const itemAttributes = {};
             for (const [key, value] of data.entries()) {
                 if (key.startsWith('attr_') && value) {
@@ -65,14 +78,20 @@ export const actions = {
                 }
             }
 
+            // --- Das fertige Datenbank-Objekt zusammensetzen ---
             const newArticle = {
                 title,
                 description: data.get('description'),
                 mainCategoryId: new ObjectId(mainCategoryId),
                 subcategoryId: data.get('subcategoryId') || null,
-                stock,
+                
+                // Hier werden die drei Bestands-Kategorien gespeichert
+                istBestand,
+                sollBestand,
+                mindestBestand,
+                
                 supplier: data.get('supplier'),
-                price: parseFloat(data.get('price') || "0"),
+                price: parseFloat(data.get('price') || "0"), // Der (evtl. berechnete) Stückpreis
                 orderLink: data.get('orderLink'),
                 imagePath,
                 attributes: itemAttributes,
@@ -80,6 +99,7 @@ export const actions = {
                 updatedAt: new Date()
             };
 
+            // In MongoDB speichern
             await db.collection('articles').insertOne(newArticle);
 
             return { success: true, message: "Artikel erfolgreich gespeichert!" };

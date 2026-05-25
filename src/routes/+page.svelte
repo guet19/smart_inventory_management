@@ -1,10 +1,35 @@
 <!-- src/routes/artikel/+page.svelte -->
 <script>
+import { page } from '$app/stores';
+    import { browser } from '$app/environment';
+
+    let showSuccessBanner = false;
+
+    // Reaktiv auf den URL-Parameter hören
+    $: if ($page.url.searchParams.get('success') === 'true') {
+        showSuccessBanner = true;
+        
+        if (browser) {
+            // Bereinigt die URL-Zeile sofort wieder (entfernt das ?success=true),
+            // damit der Banner beim manuellen Neuladen der Seite nicht wiederholt erscheint.
+            const url = new URL(window.location.href);
+            url.searchParams.delete('success');
+            window.history.replaceState({}, '', url);
+            
+            // Nach 3 Sekunden blenden wir den Banner sanft aus
+            setTimeout(() => {
+                showSuccessBanner = false;
+            }, 3000);
+        }
+    }
+
     import SearchableSelect from '$lib/components/SearchableSelect.svelte';
     
     export let data;
     const { categories, articles, attributes } = data;
-
+// --- NEU: Speicher für Filter-Warnungen (Sidebar) ---
+    let rangeWarnings = {};
+    let rangeWarningTimeouts = {};
     // --- 1. State für Suche & Kategorien ---
     let searchQuery = "";
     let selectedMainCategoryId = "";
@@ -61,8 +86,9 @@
                     const numValues = optionsArr.map(v => parseFloat(String(v).replace(',', '.'))).filter(v => !isNaN(v));
 
                     if (numValues.length > 0) {
-                        const min = Math.min(...numValues);
-                        const max = Math.max(...numValues);
+                    
+                        const min = Math.floor(Math.min(...numValues));
+                        const max = Math.ceil(Math.max(...numValues));
                         
                         if (min < max) {
                             result.push({
@@ -146,10 +172,47 @@
     }
     // --------------------------------
 
-    function updateRange(attrId, type, rawValue, absMin, absMax) {
+  function updateRange(attrId, type, rawValue, absMin, absMax, event = null) {
         let val = parseFloat(String(rawValue).replace(',', '.'));
         if (isNaN(val)) return;
 
+        let warningKey = `${attrId}_${type}`;
+        let clamped = false;
+        let warningMsg = "";
+
+        // 1. Prüfen, ob der Wert das absolute Minimum/Maximum überschreitet
+        if (val > absMax) {
+            val = absMax;
+            warningMsg = `Maximalwert: ${absMax}`;
+            clamped = true;
+        } else if (val < absMin) {
+            val = absMin;
+            warningMsg = `Minimalwert: ${absMin}`;
+            clamped = true;
+        }
+
+        // 2. Wenn eine Korrektur stattfand: Wert zurückschreiben und Warnung zeigen
+        if (clamped) {
+            if (event && event.target) {
+                event.target.value = val; // Überschreibt die falsche Eingabe im Feld
+            }
+            rangeWarnings[warningKey] = warningMsg;
+            rangeWarnings = { ...rangeWarnings }; // Svelte-Reaktivität
+            
+            if (rangeWarningTimeouts[warningKey]) clearTimeout(rangeWarningTimeouts[warningKey]);
+            rangeWarningTimeouts[warningKey] = setTimeout(() => {
+                delete rangeWarnings[warningKey];
+                rangeWarnings = { ...rangeWarnings };
+            }, 3000);
+        } else {
+            // Warnung löschen, falls der Nutzer korrigiert hat
+            if (rangeWarnings[warningKey]) {
+                delete rangeWarnings[warningKey];
+                rangeWarnings = { ...rangeWarnings };
+            }
+        }
+
+        // 3. Überschneidungen verhindern (Min darf nicht grösser als aktuelles Max sein etc.)
         if (!activeRangeFilters[attrId]) {
             activeRangeFilters[attrId] = { min: absMin, max: absMax };
         }
@@ -198,6 +261,11 @@
 </script>
 
 <div class="page-container">
+{#if showSuccessBanner}
+        <div class="alert success" style="margin-bottom: 1.5rem; padding: 1rem; border-radius: 8px; text-align: center; font-weight: 600; background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; transition: all 0.3s;">
+            Artikel erfolgreich gespeichert!
+        </div>
+    {/if}
     <div class="header">
         <h1>Artikelübersicht</h1>
         <a href="/addarticle" class="btn-primary">+ Neuer Artikel</a>
@@ -278,7 +346,7 @@
                     <h3>Spezifikationen</h3>
                     <div class="sidebar-header-actions">
                         {#if Object.values(selectedAttributeFilters).some(arr => arr?.length > 0) || Object.keys(activeRangeFilters).length > 0}
-                            <button class="btn-clear" on:click={clearAttributeFilters}>Löschen</button>
+                            <button class="btn-clear" on:click={clearAttributeFilters}>Filterauswahl löschen</button>
                         {/if}
                         <button class="btn-close-sidebar" on:click={() => isMobileFilterOpen = false}>&times;</button>
                     </div>
@@ -321,32 +389,48 @@
                                 {:else if filter.type === 'range'}
                                     <div class="range-filter-wrapper">
                                         <div class="range-inputs">
-                                            <div class="input-with-unit">
-                                                <input type="number" 
-                                                    value={activeRangeFilters[filter.id]?.min ?? filter.absMin}
-                                                    on:input={(e) => updateRange(filter.id, 'min', e.target.value, filter.absMin, filter.absMax)}
-                                                    min={filter.absMin} max={filter.absMax} step="any" class="range-num-input" />
-                                                {#if filter.unit}<span class="unit-label">{filter.unit.trim()}</span>{/if}
+                                            
+                                            <div class="range-input-col tooltip-container">
+                                                <div class="input-with-unit" class:error-highlight={rangeWarnings[`${filter.id}_min`]}>
+                                                    <input type="number" 
+                                                        value={activeRangeFilters[filter.id]?.min ?? filter.absMin}
+                                                        on:change={(e) => updateRange(filter.id, 'min', e.target.value, filter.absMin, filter.absMax, e)}
+                                                        min={filter.absMin} max={filter.absMax} step="any" class="range-num-input" />
+                                                    {#if filter.unit}<span class="unit-label">{filter.unit.trim()}</span>{/if}
+                                                </div>
+                                                
+                                                {#if rangeWarnings[`${filter.id}_min`]}
+                                                    <div class="warning-bubble">{rangeWarnings[`${filter.id}_min`]}</div>
+                                                {/if}
                                             </div>
-                                            <span class="range-separator">-</span>
-                                            <div class="input-with-unit">
-                                                <input type="number" 
-                                                    value={activeRangeFilters[filter.id]?.max ?? filter.absMax}
-                                                    on:input={(e) => updateRange(filter.id, 'max', e.target.value, filter.absMin, filter.absMax)}
-                                                    min={filter.absMin} max={filter.absMax} step="any" class="range-num-input" />
-                                                {#if filter.unit}<span class="unit-label">{filter.unit.trim()}</span>{/if}
+
+                                            <span class="range-separator" style="margin-top: 0.6rem;">-</span>
+                                            
+                                            <div class="range-input-col tooltip-container">
+                                                <div class="input-with-unit" class:error-highlight={rangeWarnings[`${filter.id}_max`]}>
+                                                    <input type="number" 
+                                                        value={activeRangeFilters[filter.id]?.max ?? filter.absMax}
+                                                        on:change={(e) => updateRange(filter.id, 'max', e.target.value, filter.absMin, filter.absMax, e)}
+                                                        min={filter.absMin} max={filter.absMax} step="any" class="range-num-input" />
+                                                    {#if filter.unit}<span class="unit-label">{filter.unit.trim()}</span>{/if}
+                                                </div>
+                                                
+                                                {#if rangeWarnings[`${filter.id}_max`]}
+                                                    <div class="warning-bubble">{rangeWarnings[`${filter.id}_max`]}</div>
+                                                {/if}
                                             </div>
+                                            
                                         </div>
                                         
                                         <div class="dual-slider">
                                             <input type="range" 
                                                 value={activeRangeFilters[filter.id]?.min ?? filter.absMin}
                                                 on:input={(e) => updateRange(filter.id, 'min', e.target.value, filter.absMin, filter.absMax)}
-                                                min={filter.absMin} max={filter.absMax} step="any" />
+                                                min={filter.absMin} max={filter.absMax} step="1" />
                                             <input type="range" 
                                                 value={activeRangeFilters[filter.id]?.max ?? filter.absMax}
                                                 on:input={(e) => updateRange(filter.id, 'max', e.target.value, filter.absMin, filter.absMax)}
-                                                min={filter.absMin} max={filter.absMax} step="any" />
+                                                min={filter.absMin} max={filter.absMax} step="1" />
                                         </div>
                                     </div>
                                 {/if}
@@ -549,7 +633,6 @@
     
     .no-modal-results { text-align: center; color: #64748b; font-size: 0.95rem; font-style: italic; margin-top: 1rem;}
 
-    /* NEU: MODAL FOOTER LAYOUT FÜR "ALLE ABWÄHLEN" */
     .modal-footer {
         display: flex; justify-content: space-between; align-items: center;
         padding: 1.2rem 1.5rem; border-top: 1px solid #e2e8f0; background: white;
@@ -572,6 +655,52 @@
 
     .mobile-overlay { display: none; }
 
+    /* --- HIER SIND DIE BLASEN (VOR DEM @media BLOCK) --- */
+    .tooltip-container { position: relative !important; overflow: visible !important; }
+    .range-input-col { display: flex; flex-direction: column; width: 45%; gap: 0.3rem; }
+    
+    .warning-bubble {
+        position: absolute;
+        bottom: calc(100% + 6px);
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: #ef4444;
+        color: white;
+        padding: 5px 9px;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        white-space: nowrap;
+        z-index: 999;
+        box-shadow: 0 4px 10px rgba(239, 68, 68, 0.25);
+        pointer-events: none;
+        animation: popIn 0.18s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+
+    .warning-bubble::after {
+        content: '';
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        border-width: 5px;
+        border-style: solid;
+        border-color: #ef4444 transparent transparent transparent;
+    }
+
+    @keyframes popIn {
+        0% { opacity: 0; transform: translate(-50%, 4px) scale(0.93); }
+        100% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+    }
+
+    .error-highlight {
+        border-color: #ef4444 !important;
+        background-color: #fef2f2 !important;
+        box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15);
+        transition: all 0.2s ease;
+    }
+
+    /* --- MOBILE STYLES (MUSS GANZ UNTEN BLEIBEN) --- */
     @media (max-width: 900px) {
         .content-wrapper { flex-direction: column; }
         .filter-right { max-width: 100%; }
@@ -588,7 +717,5 @@
         }
         .sidebar-section.is-open { transform: translateX(0); }
         .btn-close-sidebar { display: block; }
-
-        
     }
 </style>
