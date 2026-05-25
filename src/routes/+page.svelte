@@ -1,6 +1,5 @@
-<!-- src/routes/artikel/+page.svelte -->
 <script>
-import { page } from '$app/stores';
+    import { page } from '$app/stores';
     import { browser } from '$app/environment';
 
     let showSuccessBanner = false;
@@ -10,13 +9,10 @@ import { page } from '$app/stores';
         showSuccessBanner = true;
         
         if (browser) {
-            // Bereinigt die URL-Zeile sofort wieder (entfernt das ?success=true),
-            // damit der Banner beim manuellen Neuladen der Seite nicht wiederholt erscheint.
             const url = new URL(window.location.href);
             url.searchParams.delete('success');
             window.history.replaceState({}, '', url);
             
-            // Nach 3 Sekunden blenden wir den Banner sanft aus
             setTimeout(() => {
                 showSuccessBanner = false;
             }, 3000);
@@ -27,9 +23,10 @@ import { page } from '$app/stores';
     
     export let data;
     const { categories, articles, attributes } = data;
-// --- NEU: Speicher für Filter-Warnungen (Sidebar) ---
+
     let rangeWarnings = {};
     let rangeWarningTimeouts = {};
+    
     // --- 1. State für Suche & Kategorien ---
     let searchQuery = "";
     let selectedMainCategoryId = "";
@@ -46,9 +43,13 @@ import { page } from '$app/stores';
         previousMain = selectedMainCategoryId;
     }
 
-    // --- 2. BASIS-FILTER (Kategorie & Suche) ---
+    // --- 2. BASIS-FILTER (Kategorie, Suche & GTIN) ---
     $: baseFilteredArticles = articles.filter(article => {
-        const matchSearch = article.title.toLowerCase().includes(searchQuery.toLowerCase());
+        const searchStr = searchQuery.toLowerCase();
+        // GEÄNDERT: Die Suche prüft nun auch die GTIN/EAN ab
+        const matchSearch = article.title.toLowerCase().includes(searchStr) || 
+                            (article.gtin && article.gtin.toLowerCase().includes(searchStr));
+                            
         const matchMainCategory = selectedMainCategoryId === "" || article.mainCategoryId === selectedMainCategoryId;
         const matchSubCategory = selectedSubcategoryId === "" || article.subcategoryId === selectedSubcategoryId;
         return matchSearch && matchMainCategory && matchSubCategory;
@@ -86,7 +87,6 @@ import { page } from '$app/stores';
                     const numValues = optionsArr.map(v => parseFloat(String(v).replace(',', '.'))).filter(v => !isNaN(v));
 
                     if (numValues.length > 0) {
-                    
                         const min = Math.floor(Math.min(...numValues));
                         const max = Math.ceil(Math.max(...numValues));
                         
@@ -156,7 +156,6 @@ import { page } from '$app/stores';
         }
     }
 
-    // NEU: Funktion, um alle temp. Auswahlen im Modal zu löschen
     function deselectAllTempOptions() {
         tempSelectedOptions = [];
     }
@@ -170,9 +169,8 @@ import { page } from '$app/stores';
         selectedAttributeFilters = { ...selectedAttributeFilters }; 
         closeFilterModal();
     }
-    // --------------------------------
 
-  function updateRange(attrId, type, rawValue, absMin, absMax, event = null) {
+    function updateRange(attrId, type, rawValue, absMin, absMax, event = null) {
         let val = parseFloat(String(rawValue).replace(',', '.'));
         if (isNaN(val)) return;
 
@@ -180,7 +178,6 @@ import { page } from '$app/stores';
         let clamped = false;
         let warningMsg = "";
 
-        // 1. Prüfen, ob der Wert das absolute Minimum/Maximum überschreitet
         if (val > absMax) {
             val = absMax;
             warningMsg = `Maximalwert: ${absMax}`;
@@ -191,13 +188,12 @@ import { page } from '$app/stores';
             clamped = true;
         }
 
-        // 2. Wenn eine Korrektur stattfand: Wert zurückschreiben und Warnung zeigen
         if (clamped) {
             if (event && event.target) {
-                event.target.value = val; // Überschreibt die falsche Eingabe im Feld
+                event.target.value = val; 
             }
             rangeWarnings[warningKey] = warningMsg;
-            rangeWarnings = { ...rangeWarnings }; // Svelte-Reaktivität
+            rangeWarnings = { ...rangeWarnings }; 
             
             if (rangeWarningTimeouts[warningKey]) clearTimeout(rangeWarningTimeouts[warningKey]);
             rangeWarningTimeouts[warningKey] = setTimeout(() => {
@@ -205,14 +201,12 @@ import { page } from '$app/stores';
                 rangeWarnings = { ...rangeWarnings };
             }, 3000);
         } else {
-            // Warnung löschen, falls der Nutzer korrigiert hat
             if (rangeWarnings[warningKey]) {
                 delete rangeWarnings[warningKey];
                 rangeWarnings = { ...rangeWarnings };
             }
         }
 
-        // 3. Überschneidungen verhindern (Min darf nicht grösser als aktuelles Max sein etc.)
         if (!activeRangeFilters[attrId]) {
             activeRangeFilters[attrId] = { min: absMin, max: absMax };
         }
@@ -261,7 +255,7 @@ import { page } from '$app/stores';
 </script>
 
 <div class="page-container">
-{#if showSuccessBanner}
+    {#if showSuccessBanner}
         <div class="alert success" style="margin-bottom: 1.5rem; padding: 1rem; border-radius: 8px; text-align: center; font-weight: 600; background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; transition: all 0.3s;">
             Artikel erfolgreich gespeichert!
         </div>
@@ -271,7 +265,6 @@ import { page } from '$app/stores';
         <a href="/addarticle" class="btn-primary">+ Neuer Artikel</a>
     </div>
 
-    <!-- TOP-BAR -->
     <div class="top-bar">
         <div class="filter-left">
             <div class="dropdown-group">
@@ -287,9 +280,9 @@ import { page } from '$app/stores';
         </div>
         <div class="filter-right">
             <div class="search-box">
-                <label for="search">Suchen</label>
+                <label for="search">Suchen (Titel oder GTIN)</label>
                 <div class="search-mobile-wrapper">
-                    <input type="text" id="search" bind:value={searchQuery} placeholder="Artikelname eingeben..." />
+                    <input type="text" id="search" bind:value={searchQuery} placeholder="Artikelname oder Nummer..." />
                     
                     <button class="btn-mobile-filter" on:click={() => isMobileFilterOpen = true}>
                         <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
@@ -302,10 +295,8 @@ import { page } from '$app/stores';
         </div>
     </div>
 
-    <!-- MAIN CONTENT -->
     <div class="content-wrapper">
         
-        <!-- LINKE SEITE: Grid -->
         <div class="articles-section">
             <div class="results-info">Zeige {finalFilteredArticles.length} von {articles.length} Artikeln</div>
 
@@ -321,7 +312,21 @@ import { page } from '$app/stores';
                         </div>
                         <div class="card-content">
                             <h3 class="card-title">{article.title}</h3>
-                            {#if article.price}<p class="card-price">CHF {article.price.toFixed(2)}</p>{/if}
+                            
+                            
+                            <div class="card-metrics">
+                                {#if article.price}
+                                    <p class="card-price">CHF {article.price.toFixed(2)}</p>
+                                {:else}
+                                    <span></span> {/if}
+                                
+                                <p class="card-stock"
+                                class:low-stock={(article.istBestand || 0) === 0 || (article.mindestBestand !== undefined && article.mindestBestand !== null && (article.istBestand || 0) <= article.mindestBestand)}
+                                class:high-stock={(article.istBestand || 0) > 0 && (article.mindestBestand === undefined || article.mindestBestand === null || (article.istBestand || 0) > article.mindestBestand)}>
+                                    {article.istBestand ?? 0} Stk. auf Lager
+                                </p>
+                            </div>
+
                             <a href={`/${article._id}`} class="btn-details">Details ansehen</a>
                         </div>
                     </div>
@@ -332,13 +337,10 @@ import { page } from '$app/stores';
             </div>
         </div>
 
-        <!-- HINTERGRUND OVERLAY (MOBILE SIDEBAR) -->
         {#if isMobileFilterOpen}
-            <!-- svelte-ignore a11y-click-events-have-key-events -->
             <div class="mobile-overlay" on:click={() => isMobileFilterOpen = false}></div>
         {/if}
 
-        <!-- RECHTE SEITE: Filter-Sidebar -->
         <div class="sidebar-section" class:is-open={isMobileFilterOpen}>
             
             <div class="sidebar-top">
@@ -443,9 +445,7 @@ import { page } from '$app/stores';
     </div>
 </div>
 
-<!-- DAS FILTER-MODAL -->
 {#if activeFilterModal}
-    <!-- svelte-ignore a11y-click-events-have-key-events -->
     <div class="modal-fullscreen-backdrop" on:click={closeFilterModal}></div>
     
     <div class="modal-window">
@@ -468,7 +468,6 @@ import { page } from '$app/stores';
         <div class="modal-body">
             <div class="modal-options-grid">
                 {#each filteredModalOptions as opt}
-                    <!-- svelte-ignore a11y-click-events-have-key-events -->
                     <div 
                         class="modal-option-card" 
                         class:selected={tempSelectedOptions.includes(opt)}
@@ -493,7 +492,6 @@ import { page } from '$app/stores';
             </div>
         </div>
 
-        <!-- MODAL FOOTER (Neu angeordnet für den "Alle abwählen"-Button) -->
         <div class="modal-footer">
             <div class="footer-left">
                 {#if tempSelectedOptions.length > 0}
@@ -540,7 +538,14 @@ import { page } from '$app/stores';
     .no-image { color: #94a3b8; font-size: 0.9rem; }
     .card-content { padding: 1.2rem; display: flex; flex-direction: column; flex-grow: 1; }
     .card-title { margin: 0 0 0.5rem 0; font-size: 1.1rem; color: #1e293b; }
-    .card-price { margin: 0 0 1.2rem 0; font-weight: 600; color: #0284c7; }
+    
+    /* NEU: CSS für GTIN und Bestandsanzeige */
+    .card-gtin { margin: 0 0 0.8rem 0; font-size: 0.75rem; color: #64748b; font-family: monospace; }
+    .card-metrics { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem; }
+    .card-price { margin: 0; font-weight: 600; color: #0284c7; }
+    .card-stock { margin: 0; font-size: 0.85rem; font-weight: 600; color: #334155; background: #e2e8f0; padding: 0.3rem 0.6rem; border-radius: 6px; }
+    .card-stock.low-stock { color: #b91c1c; background: #fee2e2; border: 1px solid #fecaca; }
+    .card-stock.high-stock { color: #166534; background: #dcfce7; border: 1px solid #bbf7d0; }
     .btn-details { margin-top: auto; text-align: center; padding: 0.6rem; background: #f1f5f9; color: #334155; text-decoration: none; border-radius: 4px; font-weight: 500; border: 1px solid #cbd5e1; }
     
     .no-results { grid-column: 1 / -1; text-align: center; padding: 3rem; background: #f8fafc; border-radius: 8px; color: #64748b; }

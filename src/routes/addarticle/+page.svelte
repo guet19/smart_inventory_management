@@ -18,12 +18,12 @@
     let title = "";
     let description = "";
     let supplier = "";
+    let gtin = ""; // NEU: GTIN Variable
     let price = "";
     let orderLink = "";
     let importUrl = "";
     let isExtracting = false;
 
-    // --- Variablen für den optionalen Stückpreis-Rechner ---
     let totalPackPrice = "";
     let packQuantity = "";
 
@@ -103,7 +103,6 @@
         showAIPrompt = isComplete;
     }
 
-    // --- KI Auswahl-Logik ---
     function acceptAI() {
         showAIPrompt = false;
         aiChoiceMade = true;
@@ -128,6 +127,10 @@
                     expectedAttributes: activeAttributes.map((a) => ({
                         id: a._id,
                         name: a.label,
+                        // NEU: Wir senden der KI den Typ und die Einheit mit, 
+                        // damit sie weiss, wo nur Zahlen erlaubt sind!
+                        ui_type: a.ui_type,
+                        unit: a.unit || "", 
                         options: a.options || [],
                     })),
                 }),
@@ -135,10 +138,19 @@
 
             const result = await res.json();
             if (res.ok) {
-                if (result.title && !title) title = result.title;
+                if (result.title) title = result.title;
                 if (result.description) description = result.description;
-                if (result.price) price = result.price;
                 if (result.supplier) supplier = result.supplier;
+                
+                // NEU: Nimmt die GTIN von der KI entgegen
+                if (result.gtin) gtin = result.gtin;
+
+                if (result.totalPackPrice) totalPackPrice = result.totalPackPrice;
+                if (result.packQuantity) packQuantity = result.packQuantity;
+                
+                if (result.price && !result.totalPackPrice) {
+                    price = result.price;
+                }
 
                 if (result.specs) {
                     attributeValues = { ...attributeValues, ...result.specs };
@@ -158,7 +170,6 @@
         }
     }
 
-    // --- Zahlen-Eingabe-Validierung ---
     function handleNumberInput(event, attrId) {
         const originalValue = event.target.value;
         const sanitizedValue = originalValue.replace(/[^0-9.,]/g, '');
@@ -179,7 +190,6 @@
         attributeValues[attrId] = sanitizedValue;
     }
 
-    // --- Bild-Handling ---
     let fileInputElement;
     let imagePreview = null;
     let isCropping = false;
@@ -267,7 +277,6 @@
     </div>
 {/if}
 
-
 <div class="page-container">
     <h1>Neuen Artikel anlegen</h1>
 
@@ -291,8 +300,7 @@
             if (subCategoryOptions.length > 0 && !selectedSubcategoryId) { formErrors.subCategory = true; hasError = true; }
             if (!title.trim()) { formErrors.title = true; hasError = true; }
             if (!description.trim()) { formErrors.description = true; hasError = true; }
-            // GEÄNDERT: Die subtitle.trim() Bedingung war falsch und wurde entfernt
-            if (!formData.get("istBestand")) { formErrors.istBestand = true; hasError = true; }
+            if (!formData.get("istBestand") || formData.get("istBestand").toString().trim() === "") { formErrors.istBestand = true; hasError = true; }
             
             if (hasError) {
                 cancel();
@@ -365,14 +373,7 @@
             <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.2rem;">
                 <div class="form-group" style="margin-bottom: 0;">
                     <label for="istBestand" class="label-text">Ist-Bestand *</label>
-                    <input 
-                        type="number" 
-                        id="istBestand" 
-                        name="istBestand" 
-                        min="0" 
-                        class:error-highlight={formErrors.istBestand} 
-                        required 
-                    />
+                    <input type="number" id="istBestand" name="istBestand" min="0" class:error-highlight={formErrors.istBestand} required />
                 </div>
                 <div class="form-group" style="margin-bottom: 0;">
                     <label for="sollBestand" class="label-text">Soll-Bestand</label>
@@ -388,6 +389,10 @@
                 <div class="form-group">
                     <label for="supplier" class="label-text">Lieferant</label>
                     <input type="text" id="supplier" name="supplier" bind:value={supplier} />
+                </div>
+                <div class="form-group">
+                    <label for="gtin" class="label-text">GTIN / EAN / Art.Nr.</label>
+                    <input type="text" id="gtin" name="gtin" bind:value={gtin} />
                 </div>
                 
                 <div class="form-group">
