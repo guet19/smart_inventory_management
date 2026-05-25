@@ -32,10 +32,30 @@
     let selectedMainCategoryId = "";
     let selectedSubcategoryId = "";
 
-    $: mainCategoryOptions = categories.map(cat => ({ value: cat._id, label: cat.name }));
+   // 1. HAUPTKATEGORIEN FILTERN
+    // Zeigt Hauptkategorien nur, wenn sie Unterkategorien haben UND sich in diesen Unterkategorien Artikel befinden.
+    $: mainCategoryOptions = categories
+        .filter(cat => {
+            if (!cat.subcategories || cat.subcategories.length === 0) return false;
+            
+            // Prüft, ob es in der gesamten Artikelliste mindestens EINEN Artikel gibt, 
+            // der dieser Hauptkategorie und irgendeiner ihrer Unterkategorien zugeordnet ist.
+            return cat.subcategories.some(sub => 
+                articles.some(article => article.mainCategoryId === cat._id && article.subcategoryId === sub.id)
+            );
+        })
+        .map(cat => ({ value: cat._id, label: cat.name }));
+
     $: selectedMainCategory = categories.find(cat => cat._id === selectedMainCategoryId) || null;
     $: availableSubcategories = selectedMainCategory ? selectedMainCategory.subcategories : [];
-    $: subCategoryOptions = availableSubcategories.map(sub => ({ value: sub.id, label: sub.name }));
+    
+    // 2. UNTERKATEGORIEN FILTERN
+    // Zeigt nur die Unterkategorien der gewählten Hauptkategorie, die auch wirklich eigene Artikel besitzen.
+    $: subCategoryOptions = availableSubcategories
+        .filter(sub => 
+            articles.some(article => article.mainCategoryId === selectedMainCategoryId && article.subcategoryId === sub.id)
+        )
+        .map(sub => ({ value: sub.id, label: sub.name }));
 
     let previousMain = "";
     $: if (selectedMainCategoryId !== previousMain) {
@@ -226,6 +246,11 @@
         selectedAttributeFilters = {};
         activeRangeFilters = {};
     }
+    // NEU: Setzt die gesamte Kategorie-Filterung zurück
+    function clearCategorySelection() {
+        selectedMainCategoryId = "";
+        selectedSubcategoryId = "";
+    }
 
     // --- 5. FINALES ARRAY FÜR DIE KARTEN ---
     $: finalFilteredArticles = baseFilteredArticles.filter(article => {
@@ -271,11 +296,18 @@
                 <label>Hauptkategorie</label>
                 <SearchableSelect name="filterMain" options={mainCategoryOptions} bind:value={selectedMainCategoryId} placeholder="Alle Hauptkategorien" />
             </div>
-            {#if subCategoryOptions.length > 0}
+            
+            {#if selectedMainCategoryId && subCategoryOptions.length > 0}
                 <div class="dropdown-group">
                     <label>Unterkategorie</label>
                     <SearchableSelect name="filterSub" options={subCategoryOptions} bind:value={selectedSubcategoryId} placeholder="Alle Unterkategorien" />
                 </div>
+            {/if}
+
+            {#if selectedMainCategoryId || selectedSubcategoryId}
+                <button type="button" class="btn-clear-categories" on:click={clearCategorySelection}>
+                    Kategorieauswahl entfernen
+                </button>
             {/if}
         </div>
         <div class="filter-right">
@@ -520,6 +552,24 @@
     .dropdown-group, .search-box { display: flex; flex-direction: column; gap: 0.4rem; flex-grow: 1; }
     .dropdown-group { max-width: 250px; }
     label { font-size: 0.85rem; font-weight: 600; color: #64748b; }
+    /* NEU: Styling für den Kategorie-Löschbutton */
+    .btn-clear-categories {
+        background: none;
+        border: none;
+        color: #ef4444; /* Gleiches Rot wie in der Sidebar */
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        padding: 0;
+        margin-bottom: 0.6rem; /* Perfekte optische Höhenausrichtung neben den Feldern */
+        align-self: flex-end;
+        transition: color 0.2s ease;
+        white-space: nowrap;
+    }
+    .btn-clear-categories:hover {
+        color: #b91c1c;
+        text-decoration: underline;
+    }
     
     .search-mobile-wrapper { display: flex; gap: 0.5rem; width: 100%; }
     input[type="text"] { padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 1rem; width: 100%; box-sizing: border-box; }
