@@ -1,19 +1,24 @@
+// src/routes/kategorien/+page.server.js
 import { fail } from '@sveltejs/kit';
 import db from '$lib/server/db.js';
 
 export async function load() {
-    // Wir laden jetzt Kategorien UND die Attribut-Bibliothek parallel
-    const categories = await db.getCategories();
-    const filterAttributes = await db.getFilterAttributes();
+    // Wir laden Kategorien, Attribute UND Artikel parallel
+    const [categories, filterAttributes, articles] = await Promise.all([
+        db.getCategories(),
+        db.getFilterAttributes(),
+        db.getArticles() // NEU: Artikel laden für Frontend-Prüfung
+    ]);
     
     return {
         categories,
-        filterAttributes
+        filterAttributes,
+        articles
     };
 }
 
 export const actions = {
-    // Action 1: Hauptkategorie erstellen
+    // Action: Hauptkategorie erstellen
     createMain: async ({ request }) => {
         const data = await request.formData();
         const name = data.get('name');
@@ -23,14 +28,15 @@ export const actions = {
         }
 
         try {
-            await db.createMainCategory(name.trim());
-            return { successMain: true };
+            // db.createMainCategory gibt die neue ID zurück fürs automatische Aufklappen im Frontend
+            const newId = await db.createMainCategory(name.trim());
+            return { successMain: true, newId: newId ? newId.toString() : null };
         } catch (error) {
             return fail(500, { errorMain: "Datenbankfehler beim Speichern." });
         }
     },
 
-    // Action 2: Unterkategorie erstellen
+    // Action: Unterkategorie erstellen
     createSub: async ({ request }) => {
         const data = await request.formData();
         const mainId = data.get('mainId');
@@ -48,6 +54,66 @@ export const actions = {
         }
     },
 
+    // Action: Einzelne Unterkategorie löschen
+    deleteSub: async ({ request }) => {
+        const data = await request.formData();
+        const mainId = data.get('mainId');
+        const subId = data.get('subId');
+
+        if (!mainId || !subId) {
+            return fail(400, { errorDelete: "IDs für die Löschung fehlen." });
+        }
+
+        try {
+            await db.deleteSubcategory(mainId, subId);
+            return { successDelete: true };
+        } catch (error) {
+            return fail(500, { errorDelete: "Datenbankfehler beim Löschen der Unterkategorie." });
+        }
+    },
+
+    // Action: Hauptkategorie löschen (NEU)
+    deleteMain: async ({ request }) => {
+        const data = await request.formData();
+        const mainId = data.get('mainId');
+
+        if (!mainId) {
+            return fail(400, { errorDeleteMain: "ID der Hauptkategorie fehlt." });
+        }
+
+        try {
+            await db.deleteMainCategory(mainId);
+            return { successDeleteMain: true };
+        } catch (error) {
+            return fail(500, { errorDeleteMain: "Datenbankfehler beim Löschen der Hauptkategorie." });
+        }
+    },
+
+    // Action: Mehrere Unterkategorien löschen (Massenlöschung) (NEU)
+    bulkDeleteSubs: async ({ request }) => {
+        const data = await request.formData();
+        const mainId = data.get('mainId');
+        
+        // getAll holt alle Checkboxen mit dem Namen 'subIds', die angeklickt wurden
+        const subIds = data.getAll('subIds');
+
+        if (!mainId || !subIds || subIds.length === 0) {
+            return fail(400, { errorBulkDelete: "Daten für Massenlöschung unvollständig." });
+        }
+
+        try {
+            // Wir löschen die Unterkategorien nacheinander in der DB.
+            // Effizienter wäre ein Bulk-Write, aber das reicht für den Anfang.
+            for (const subId of subIds) {
+                await db.deleteSubcategory(mainId, subId);
+            }
+            return { successBulkDelete: true };
+        } catch (error) {
+            return fail(500, { errorBulkDelete: "Fehler beim Massenlöschen in der Datenbank." });
+        }
+    },
+
+    // Action: Attribute zuweisen
     updateAttributes: async ({ request }) => {
         const data = await request.formData();
         const mainId = data.get('mainId');
@@ -68,6 +134,7 @@ export const actions = {
         }
     },
 
+    // Action: Hauptkategorie umbenennen
     renameMain: async ({ request }) => {
         const data = await request.formData();
         const id = data.get('id');
@@ -82,5 +149,4 @@ export const actions = {
             return fail(500, { errorRename: "Fehler beim Umbenennen in der Datenbank." });
         }
     }
-
 };

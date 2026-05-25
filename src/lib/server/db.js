@@ -5,14 +5,15 @@ const client = new MongoClient(DB_URI);
 await client.connect();
 export const db = client.db("Storify");
 
-// --- Funktionen um die Kategorien für die Kategorieeinstellungen zu laden ---
+// ==========================================
+// 1. KATEGORIEN VERWALTUNG
+// ==========================================
+
 async function getCategories() {
     let categories = [];
     try {
         const collection = db.collection("categories");
         categories = await collection.find({}).toArray();
-        
-        // MongoDB ObjectIds für Svelte in Strings umwandeln
         categories.forEach(cat => {
             cat._id = cat._id.toString();
         });
@@ -22,29 +23,25 @@ async function getCategories() {
     return categories;
 }
 
-// --- Hauptkategorie erstellen ---
 async function createMainCategory(name) {
     try {
         const collection = db.collection("categories");
         const result = await collection.insertOne({
             name: name,
-            subcategories: [], // Startet mit einem leeren Array
+            subcategories: [], 
             createdAt: new Date()
         });
-        return result;
+        return result.insertedId; 
     } catch (error) {
         console.error("Fehler beim Speichern der Hauptkategorie:", error);
         throw error;
     }
 }
 
-// --- NEU: Unterkategorie hinzufügen ---
 async function createSubcategory(mainCategoryId, subName) {
     try {
         const collection = db.collection("categories");
-        const subId = "sub_" + Date.now(); // Generiert eine simple, einmalige ID
-        
-        // Fügt das neue Objekt in das 'subcategories' Array der gewählten Hauptkategorie ein
+        const subId = "sub_" + Date.now(); 
         const result = await collection.updateOne(
             { _id: new ObjectId(mainCategoryId) },
             { $push: { subcategories: { id: subId, name: subName, allowed_attributes: [] } } }
@@ -55,7 +52,32 @@ async function createSubcategory(mainCategoryId, subName) {
         throw error;
     }
 }
-// --- NEU: Hauptkategorie umbenennen ---
+
+async function deleteSubcategory(mainCategoryId, subCategoryId) {
+    try {
+        const collection = db.collection("categories");
+        const result = await collection.updateOne(
+            { _id: new ObjectId(mainCategoryId) },
+            { $pull: { subcategories: { id: subCategoryId } } }
+        );
+        return result;
+    } catch (error) {
+        console.error("Fehler beim Löschen der Unterkategorie:", error);
+        throw error;
+    }
+}
+
+async function deleteMainCategory(id) {
+    try {
+        const collection = db.collection("categories");
+        const result = await collection.deleteOne({ _id: new ObjectId(id) });
+        return result;
+    } catch (error) {
+        console.error("Fehler beim Löschen der Hauptkategorie:", error);
+        throw error;
+    }
+}
+
 async function renameMainCategory(id, newName) {
     try {
         const collection = db.collection("categories");
@@ -70,12 +92,9 @@ async function renameMainCategory(id, newName) {
     }
 }
 
-// --- NEU: Attribute einer Unterkategorie zuweisen ---
 async function updateSubcategoryAttributes(mainCategoryId, subCategoryId, attributeIds) {
     try {
         const collection = db.collection("categories");
-        
-        // Aktualisiert das 'allowed_attributes' Array der exakt passenden Unterkategorie
         const result = await collection.updateOne(
             { _id: new ObjectId(mainCategoryId), "subcategories.id": subCategoryId },
             { $set: { "subcategories.$.allowed_attributes": attributeIds } }
@@ -87,27 +106,15 @@ async function updateSubcategoryAttributes(mainCategoryId, subCategoryId, attrib
     }
 }
 
+// ==========================================
+// 2. FILTER-ATTRIBUTE VERWALTUNG
+// ==========================================
 
-
-
-
-
-
-
-
-
-
-
-
-
-//Attributfunktionen für Attributeinstellungen
-// --- Filterattribute für die Attributeinstellung zu laden ---
 async function getFilterAttributes() {
     let attributes = [];
     try {
         const collection = db.collection("filter_attributes");
         attributes = await collection.find({}).toArray();
-        
         attributes.forEach(attr => {
             attr._id = attr._id.toString();
         });
@@ -117,8 +124,6 @@ async function getFilterAttributes() {
     return attributes;
 }
 
-
-// --- Attribut speichern ---
 async function createFilterAttribute(attributeData) {
     try {
         const collection = db.collection("filter_attributes");
@@ -126,14 +131,13 @@ async function createFilterAttribute(attributeData) {
         return result;
     } catch (error) {
         console.error("Fehler beim Speichern des Attributs:", error);
-        throw error; // Wir werfen den Fehler weiter, damit die Seite weiss, dass etwas schiefgelaufen ist
+        throw error; 
     }
 }
-// --- Attribut löschen ---
+
 async function deleteFilterAttribute(id) {
     try {
         const collection = db.collection("filter_attributes");
-        // MongoDB erwartet ein ObjectId für die Suche nach der _id
         const result = await collection.deleteOne({ _id: new ObjectId(id) });
         return result;
     } catch (error) {
@@ -142,13 +146,12 @@ async function deleteFilterAttribute(id) {
     }
 }
 
-// --- Attribut updaten ---
 async function updateFilterAttribute(id, attributeData) {
     try {
         const collection = db.collection("filter_attributes");
         const result = await collection.updateOne(
             { _id: new ObjectId(id) },
-            { $set: attributeData } // Nutzt $set, um nur die angegebenen Felder zu ändern
+            { $set: attributeData } 
         );
         return result;
     } catch (error) {
@@ -157,11 +160,9 @@ async function updateFilterAttribute(id, attributeData) {
     }
 }
 
-// --- Attribut Hilfsfunktion ---
 async function getFilterAttributeByLabel(label) {
     try {
         const collection = db.collection("filter_attributes");
-        // Wir suchen mit einem regulären Ausdruck, um Groß-/Kleinschreibung zu ignorieren
         const attribute = await collection.findOne({ 
             label: { $regex: new RegExp(`^${label}$`, 'i') } 
         });
@@ -175,7 +176,6 @@ async function getFilterAttributeByLabel(label) {
 async function addOptionToFilterAttribute(id, newOption) {
     try {
         const collection = db.collection("filter_attributes");
-        // $addToSet stellt sicher, dass "M5" nicht doppelt angelegt wird!
         const result = await collection.updateOne(
             { _id: new ObjectId(id) },
             { $addToSet: { options: newOption } } 
@@ -190,7 +190,6 @@ async function addOptionToFilterAttribute(id, newOption) {
 async function removeOptionFromFilterAttribute(id, optionToRemove) {
     try {
         const collection = db.collection("filter_attributes");
-        // $pull entfernt genau diesen einen Text-String aus dem Array
         const result = await collection.updateOne(
             { _id: new ObjectId(id) },
             { $pull: { options: optionToRemove } }
@@ -202,10 +201,12 @@ async function removeOptionFromFilterAttribute(id, optionToRemove) {
     }
 }
 
-// --- NEU: Artikel speichern ---
+// ==========================================
+// 3. ARTIKEL VERWALTUNG
+// ==========================================
+
 async function createArticle(articleData) {
     try {
-        // Wir nutzen eine neue Collection "articles"
         const collection = db.collection("articles");
         const result = await collection.insertOne(articleData);
         return result;
@@ -219,39 +220,27 @@ async function getArticles() {
     let articles = [];
     try {
         const collection = db.collection("articles");
-        // Sortiert die neuesten Artikel nach oben (-1)
         articles = await collection.find({}).sort({ createdAt: -1 }).toArray();
         
-        // MongoDB ObjectIds und Datums-Objekte für Svelte in Strings umwandeln
         articles.forEach(article => {
-            if (article._id) {
-                article._id = article._id.toString();
-            }
-            if (article.mainCategoryId) {
-                // Hier lösen wir den 500er Fehler!
-                article.mainCategoryId = article.mainCategoryId.toString();
-            }
-            if (article.createdAt) {
-                // Datum in einen lesbaren String (ISO-Format) umwandeln
-                article.createdAt = article.createdAt.toISOString();
-            }
-            if (article.updatedAt) {
-                article.updatedAt = article.updatedAt.toISOString();
-            }
+            if (article._id) article._id = article._id.toString();
+            if (article.mainCategoryId) article.mainCategoryId = article.mainCategoryId.toString();
+            if (article.createdAt) article.createdAt = article.createdAt.toISOString();
+            if (article.updatedAt) article.updatedAt = article.updatedAt.toISOString();
         });
     } catch (error) {
         console.error("Fehler beim Laden der Artikel:", error);
     }
     return articles;
 }
+
 async function getArticleById(id) {
     try {
         const collection = db.collection("articles");
-        // Wandelt den String aus der URL in eine echte MongoDB-ID um
         const article = await collection.findOne({ _id: new ObjectId(id) });
         
         if (article) {
-            article._id = article._id.toString(); // Für Svelte serialisieren
+            article._id = article._id.toString(); 
         }
         return article;
     } catch (error) {
@@ -260,24 +249,29 @@ async function getArticleById(id) {
     }
 }
 
-
-
-
-
-// Alle Funktionen exportieren
+// ==========================================
+// ALLE FUNKTIONEN EXPORTIEREN
+// ==========================================
 export default { 
+    // Kategorien
     getCategories, 
+    createMainCategory,
+    createSubcategory,
+    deleteSubcategory,
+    deleteMainCategory, 
+    renameMainCategory,
+    updateSubcategoryAttributes,
+    
+    // Attribute
     getFilterAttributes, 
     createFilterAttribute,
     deleteFilterAttribute,
     updateFilterAttribute,
     getFilterAttributeByLabel,
-    createSubcategory,
-    createMainCategory,
-    updateSubcategoryAttributes,
     addOptionToFilterAttribute,
     removeOptionFromFilterAttribute,
-    renameMainCategory,
+    
+    // Artikel
     createArticle,
     getArticles,
     getArticleById

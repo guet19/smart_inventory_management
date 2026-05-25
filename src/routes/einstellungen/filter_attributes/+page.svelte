@@ -1,6 +1,18 @@
 <script>
   import { enhance } from "$app/forms";
+  import { onMount } from "svelte";
+  import { browser } from "$app/environment";
+
   let { data, form } = $props();
+
+  // --- NEU: State für den Rückkehr-Banner ---
+  let returnToSubName = $state(null);
+
+  onMount(() => {
+    if (browser) {
+      returnToSubName = sessionStorage.getItem("restoreSubName");
+    }
+  });
 
   // --- STATE: ÜBERSICHT (Erstellen & Liste) ---
   let label = $state("");
@@ -14,7 +26,7 @@
   let expandedId = $state(null);
   let successMessage = $state("");
 
-  // NEU: States für die Quick-Actions (Inline-Editing)
+  // States für die Quick-Actions (Inline-Editing)
   let quickOptionSearchQuery = $state("");
   let quickNewOption = $state("");
 
@@ -127,6 +139,22 @@
     {/if}
   </div>
 
+  {#if returnToSubName}
+    <div class="alert bg-primary-subtle border border-primary border-2 d-flex justify-content-between align-items-center shadow-sm mb-4 animate-fade-in p-3 rounded-3 flex-wrap gap-3">
+      <div>
+        <h4 class="alert-heading h5 mb-1 text-primary fw-bold">
+          <i class="bi bi-info-circle-fill me-2"></i> Filtererstellung für "{returnToSubName}"
+        </h4>
+        <p class="mb-0 small text-dark">
+          Legen Sie hier das fehlende Attribut an. Wenn Sie fertig sind, klicken Sie rechts, um zur Kategorie zurückzukehren und die Zuweisung abzuschließen.
+        </p>
+      </div>
+      <a href="/einstellungen/category" class="btn btn-primary fw-bold shadow-sm px-4 flex-shrink-0">
+        <i class="bi bi-arrow-left-circle me-2"></i> Zurück zu "{returnToSubName}"
+      </a>
+    </div>
+  {/if}
+
   {#if successMessage !== ""}
     <div
       class="alert alert-success shadow-sm animate-fade-in d-flex align-items-center gap-2 mb-4"
@@ -137,9 +165,6 @@
   {/if}
 
   <div class="row">
-    <!-- ========================================== -->
-    <!-- ANSICHT 1: FOCUS-MODUS (Bearbeiten)        -->
-    <!-- ========================================== -->
     {#if activeAttribute}
       <div class="col-12 animate-fade-in">
         <div class="card shadow border-0 overflow-hidden">
@@ -340,10 +365,7 @@
         </div>
       </div>
 
-      <!-- ========================================== -->
-      <!-- ANSICHT 2: ÜBERSICHT (Kategorien-Baum)     -->
-      <!-- ========================================== -->
-    {:else}
+      {:else}
       <div class="col-md-4 mb-4 animate-fade-in">
         <div
           class="card shadow-sm border-0 bg-dark text-white p-4 sticky-top dark-scrollbar"
@@ -539,13 +561,9 @@
                 ></i>
               </button>
 
-              <!-- ========================================================= -->
-              <!-- NEU: DIE QUICK-ACTION ANSICHT FÜR AUSGEKLAPPTE ATTRIBUTE  -->
-              <!-- ========================================================= -->
               {#if expandedId === attr._id || searchQuery.trim() !== ""}
                 <div class="p-3 bg-light border-top animate-fade-in">
                   {#if attr.ui_type === "select"}
-                    <!-- HEADER: Titel links, Suche oben rechts -->
                     <div
                       class="d-flex justify-content-between align-items-center mb-3"
                     >
@@ -568,7 +586,6 @@
                       </div>
                     </div>
 
-                    <!-- HIER IST DER FIX: @const ausserhalb des divs, direkt im {#if} -->
                     {@const filteredQuickOptions = (attr.options || []).filter(
                       (o) =>
                         o
@@ -578,7 +595,6 @@
                           ),
                     )}
 
-                    <!-- GEFILTERTE LISTE MIT QUICK-DELETE (Jedes Badge ist ein kleines Formular) -->
                     <div class="d-flex flex-wrap gap-2">
                       {#each filteredQuickOptions as option}
                         <form
@@ -601,7 +617,6 @@
                             class="badge bg-white text-dark border border-secondary-subtle px-3 py-2 shadow-sm d-flex align-items-center gap-2"
                           >
                             {option}
-                            <!-- Klick auf das X sendet das Formular ab -->
                             <button
                               type="submit"
                               class="btn-close"
@@ -625,12 +640,10 @@
                     </div>
                   {/if}
 
-                  <!-- FOOTER: Hinzufügen (unten links) & Hauptaktionen (unten rechts) -->
                   <div
                     class="mt-4 pt-3 border-top d-flex justify-content-between align-items-center flex-wrap gap-3"
                   >
                     {#if attr.ui_type === "select"}
-                      <!-- QUICK-ADD UNTEN LINKS -->
                       <form
                         method="POST"
                         action="?/addOptionQuick"
@@ -667,10 +680,8 @@
                       </form>
                     {:else}
                       <div></div>
-                      <!-- Leerer Platzhalter für Flexbox -->
                     {/if}
 
-                    <!-- HAUPTAKTIONEN UNTEN RECHTS -->
                     <div class="d-flex gap-2">
                       <button
                         class="btn btn-sm btn-outline-primary fw-bold px-3 shadow-sm"
@@ -683,14 +694,12 @@
                         method="POST"
                         action="?/delete"
                         use:enhance={() => {
-                          // HIER IST DER FIX: Wir merken uns den Namen, BEVOR die Liste neu geladen wird
                           const deletedLabel = attr.label;
 
                           return async ({ result, update }) => {
-                            await update(); // Hier rücken die restlichen Einträge nach
+                            await update(); 
 
                             if (result.type === "success") {
-                              // Wir nutzen jetzt unsere gemerkte Variable statt attr.label
                               successMessage = `Attribut "${deletedLabel}" erfolgreich gelöscht!`;
                               setTimeout(() => {
                                 successMessage = "";

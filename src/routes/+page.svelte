@@ -33,13 +33,9 @@
     let selectedSubcategoryId = "";
 
    // 1. HAUPTKATEGORIEN FILTERN
-    // Zeigt Hauptkategorien nur, wenn sie Unterkategorien haben UND sich in diesen Unterkategorien Artikel befinden.
     $: mainCategoryOptions = categories
         .filter(cat => {
             if (!cat.subcategories || cat.subcategories.length === 0) return false;
-            
-            // Prüft, ob es in der gesamten Artikelliste mindestens EINEN Artikel gibt, 
-            // der dieser Hauptkategorie und irgendeiner ihrer Unterkategorien zugeordnet ist.
             return cat.subcategories.some(sub => 
                 articles.some(article => article.mainCategoryId === cat._id && article.subcategoryId === sub.id)
             );
@@ -50,7 +46,6 @@
     $: availableSubcategories = selectedMainCategory ? selectedMainCategory.subcategories : [];
     
     // 2. UNTERKATEGORIEN FILTERN
-    // Zeigt nur die Unterkategorien der gewählten Hauptkategorie, die auch wirklich eigene Artikel besitzen.
     $: subCategoryOptions = availableSubcategories
         .filter(sub => 
             articles.some(article => article.mainCategoryId === selectedMainCategoryId && article.subcategoryId === sub.id)
@@ -64,11 +59,14 @@
     }
 
     // --- 2. BASIS-FILTER (Kategorie, Suche & GTIN) ---
+    // GEFIXED: Absturzsicherung mit || "" für leere Datenbankeinträge
     $: baseFilteredArticles = articles.filter(article => {
-        const searchStr = searchQuery.toLowerCase();
-        // GEÄNDERT: Die Suche prüft nun auch die GTIN/EAN ab
-        const matchSearch = article.title.toLowerCase().includes(searchStr) || 
-                            (article.gtin && article.gtin.toLowerCase().includes(searchStr));
+        const searchStr = (searchQuery || "").toLowerCase();
+        const safeTitle = article.title || "";
+        const safeGtin = article.gtin || "";
+        
+        const matchSearch = safeTitle.toLowerCase().includes(searchStr) || 
+                            safeGtin.toLowerCase().includes(searchStr);
                             
         const matchMainCategory = selectedMainCategoryId === "" || article.mainCategoryId === selectedMainCategoryId;
         const matchSubCategory = selectedSubcategoryId === "" || article.subcategoryId === selectedSubcategoryId;
@@ -137,9 +135,10 @@
     })();
 
     // --- FILTER-SUCHE IN DER SIDEBAR ---
+    // GEFIXED: Absturzsicherung mit || "" 
     let sidebarAttributeSearch = "";
     $: visibleSidebarFilters = availableSidebarFilters.filter(filter => 
-        filter.label.toLowerCase().includes(sidebarAttributeSearch.toLowerCase())
+        (filter.label || "").toLowerCase().includes((sidebarAttributeSearch || "").toLowerCase())
     );
 
     // --- 4. DETAIL-FILTER STATES ---
@@ -151,9 +150,10 @@
     let activeFilterModal = null;    
     let tempSelectedOptions = [];    
     
+    // GEFIXED: Absturzsicherung mit || ""
     let modalSearchQuery = "";
     $: filteredModalOptions = activeFilterModal 
-        ? activeFilterModal.options.filter(opt => String(opt).toLowerCase().includes(modalSearchQuery.toLowerCase()))
+        ? activeFilterModal.options.filter(opt => String(opt || "").toLowerCase().includes((modalSearchQuery || "").toLowerCase()))
         : [];
 
     function openFilterModal(filter) {
@@ -246,7 +246,7 @@
         selectedAttributeFilters = {};
         activeRangeFilters = {};
     }
-    // NEU: Setzt die gesamte Kategorie-Filterung zurück
+
     function clearCategorySelection() {
         selectedMainCategoryId = "";
         selectedSubcategoryId = "";
@@ -293,14 +293,14 @@
     <div class="top-bar">
         <div class="filter-left">
             <div class="dropdown-group">
-                <label>Hauptkategorie</label>
-                <SearchableSelect name="filterMain" options={mainCategoryOptions} bind:value={selectedMainCategoryId} placeholder="Alle Hauptkategorien" />
+                <label for="filterMain">Hauptkategorie</label>
+                <SearchableSelect id="filterMain" name="filterMain" options={mainCategoryOptions} bind:value={selectedMainCategoryId} placeholder="Alle Hauptkategorien" />
             </div>
             
             {#if selectedMainCategoryId && subCategoryOptions.length > 0}
                 <div class="dropdown-group">
-                    <label>Unterkategorie</label>
-                    <SearchableSelect name="filterSub" options={subCategoryOptions} bind:value={selectedSubcategoryId} placeholder="Alle Unterkategorien" />
+                    <label for="filterSub">Unterkategorie</label>
+                    <SearchableSelect id="filterSub" name="filterSub" options={subCategoryOptions} bind:value={selectedSubcategoryId} placeholder="Alle Unterkategorien" />
                 </div>
             {/if}
 
@@ -344,7 +344,6 @@
                         </div>
                         <div class="card-content">
                             <h3 class="card-title">{article.title}</h3>
-                            
                             
                             <div class="card-metrics">
                                 {#if article.price}
@@ -503,7 +502,10 @@
                     <div 
                         class="modal-option-card" 
                         class:selected={tempSelectedOptions.includes(opt)}
+                        role="button"
+                        tabindex="0"
                         on:click={() => toggleTempOption(opt)}
+                        on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && toggleTempOption(opt)}
                     >
                         <div class="checkbox-indicator">
                             {#if tempSelectedOptions.includes(opt)}
@@ -552,24 +554,21 @@
     .dropdown-group, .search-box { display: flex; flex-direction: column; gap: 0.4rem; flex-grow: 1; }
     .dropdown-group { max-width: 250px; }
     label { font-size: 0.85rem; font-weight: 600; color: #64748b; }
-    /* NEU: Styling für den Kategorie-Löschbutton */
+    
     .btn-clear-categories {
         background: none;
         border: none;
-        color: #ef4444; /* Gleiches Rot wie in der Sidebar */
+        color: #ef4444; 
         font-size: 0.85rem;
         font-weight: 600;
         cursor: pointer;
         padding: 0;
-        margin-bottom: 0.6rem; /* Perfekte optische Höhenausrichtung neben den Feldern */
+        margin-bottom: 0.6rem; 
         align-self: flex-end;
         transition: color 0.2s ease;
         white-space: nowrap;
     }
-    .btn-clear-categories:hover {
-        color: #b91c1c;
-        text-decoration: underline;
-    }
+    .btn-clear-categories:hover { color: #b91c1c; text-decoration: underline; }
     
     .search-mobile-wrapper { display: flex; gap: 0.5rem; width: 100%; }
     input[type="text"] { padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 1rem; width: 100%; box-sizing: border-box; }
@@ -589,8 +588,6 @@
     .card-content { padding: 1.2rem; display: flex; flex-direction: column; flex-grow: 1; }
     .card-title { margin: 0 0 0.5rem 0; font-size: 1.1rem; color: #1e293b; }
     
-    /* NEU: CSS für GTIN und Bestandsanzeige */
-    .card-gtin { margin: 0 0 0.8rem 0; font-size: 0.75rem; color: #64748b; font-family: monospace; }
     .card-metrics { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem; }
     .card-price { margin: 0; font-weight: 600; color: #0284c7; }
     .card-stock { margin: 0; font-size: 0.85rem; font-weight: 600; color: #334155; background: #e2e8f0; padding: 0.3rem 0.6rem; border-radius: 6px; }
