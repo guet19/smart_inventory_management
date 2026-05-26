@@ -21,12 +21,17 @@
 
   let successMessage = $state("");
 
+  // State für Umbenennen der Hauptkategorie
   let editingMainId = $state(null);
   let editMainName = $state("");
 
+  // State für Umbenennen der Unterkategorie
+  let editingSubId = $state(null);
+  let editingSubMainId = $state(null);
+  let editSubName = $state("");
+
   let confirmDeleteMainId = $state(null);
 
-  // --- Workflow-Gedächtnis für Filter-Erstellung ---
   onMount(() => {
     if (browser) {
       const savedMain = sessionStorage.getItem("restoreMainId");
@@ -35,8 +40,6 @@
       if (savedMain && savedSub) {
         activeMainId = savedMain;
         activeSubId = savedSub;
-        
-        // Gedächtnis leeren
         sessionStorage.removeItem("restoreMainId");
         sessionStorage.removeItem("restoreSubId");
         sessionStorage.removeItem("restoreSubName"); 
@@ -53,7 +56,6 @@
     }
   }
 
-  // --- DATEN-LOGIK: ÜBERSICHT ---
   let sortedCategories = $derived(
     [...(data.categories || [])].sort((a, b) =>
       a.name.localeCompare(b.name, "de"),
@@ -88,15 +90,28 @@
     confirmDeleteMainId = null;
   }
 
+  // --- UMBENENNEN FUNKTIONEN ---
   function startEditMain(category) {
     editingMainId = category._id;
     editMainName = category.name;
     confirmDeleteMainId = null;
+    cancelEditSub(); 
   }
-
   function cancelEditMain() {
     editingMainId = null;
     editMainName = "";
+  }
+
+  function startEditSub(mainId, sub) {
+    editingSubMainId = mainId;
+    editingSubId = sub.id;
+    editSubName = sub.name;
+    cancelEditMain(); 
+  }
+  function cancelEditSub() {
+    editingSubMainId = null;
+    editingSubId = null;
+    editSubName = "";
   }
 
   function closeGuide() {
@@ -138,11 +153,17 @@
   <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
     <h2>Kategorien verwalten</h2>
 
-    {#if activeMainId && activeSubId}
-      <button class="btn btn-outline-secondary shadow-sm fw-bold" onclick={closeAttributeEdit}>
-        <i class="bi bi-arrow-left me-1"></i> Zurück zur Übersicht
-      </button>
-    {/if}
+    <div class="d-flex align-items-center gap-2">
+      <a href="/einstellungen/filter_attributes" class="btn btn-primary shadow-sm fw-bold">
+        <i class="bi bi-sliders me-1"></i> Filterverwaltung
+      </a>
+
+      {#if activeMainId && activeSubId}
+        <button class="btn btn-outline-secondary shadow-sm fw-bold" onclick={closeAttributeEdit}>
+          <i class="bi bi-arrow-left me-1"></i> Zurück zur Übersicht
+        </button>
+      {/if}
+    </div>
   </div>
 
   {#if successMessage !== ""}
@@ -184,9 +205,7 @@
                   if (result.type === "success") {
                     successMessage = `Attribute für "${activeSubcategory.name}" erfolgreich gespeichert!`;
                     closeAttributeEdit();
-                    setTimeout(() => {
-                      successMessage = "";
-                    }, 3500);
+                    setTimeout(() => { successMessage = ""; }, 3500);
                   }
                 };
               }}
@@ -203,19 +222,11 @@
                   bind:value={attributeSearchQuery}
                 />
                 {#if attributeSearchQuery !== ""}
-                  <button
-                    class="btn btn-white border border-start-0 bg-white"
-                    type="button"
-                    aria-label="Suche zurücksetzen"
-                    onclick={() => (attributeSearchQuery = "")}
-                  >
-                    <i class="bi bi-x-lg"></i>
-                  </button>
+                  <button class="btn btn-white border border-start-0 bg-white" type="button" onclick={() => (attributeSearchQuery = "")}><i class="bi bi-x-lg"></i></button>
                 {/if}
               </div>
 
               <div class="bg-white border rounded shadow-sm p-4 mb-4">
-                
                 <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
                   <h5 class="h6 text-muted mb-0">
                     {attributeSearchQuery === "" ? "Alle verfügbaren Attribute:" : "Suchergebnisse:"}
@@ -259,11 +270,15 @@
                 </div>
               </div>
 
-              <div class="d-flex justify-content-end gap-3">
-                <button type="button" class="btn btn-outline-secondary px-4" onclick={closeAttributeEdit}>Abbrechen</button>
-                <button type="submit" class="btn btn-success px-5 fw-bold shadow-sm">
-                  <i class="bi bi-save me-2"></i> Zuweisung speichern
+              <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top flex-wrap gap-3">
+                <button type="button" class="btn btn-outline-primary fw-bold" onclick={jumpToFilterCreation}>
+                  <i class="bi bi-gear me-1"></i> Filter bearbeiten
                 </button>
+                
+                <div class="d-flex gap-2">
+                  <button type="button" class="btn btn-outline-secondary px-4" onclick={closeAttributeEdit}>Abbrechen</button>
+                  <button type="submit" class="btn btn-success px-5 fw-bold shadow-sm"><i class="bi bi-save me-2"></i> Zuweisung speichern</button>
+                </div>
               </div>
             </form>
           </div>
@@ -283,9 +298,7 @@
                 if (result.type === "success" && result.data?.newId) {
                   expandedId = result.data.newId;
                   showSubGuide = true;
-                  setTimeout(() => {
-                    showSubGuide = false;
-                  }, 8000);
+                  setTimeout(() => { showSubGuide = false; }, 8000);
                 }
                 newMainName = "";
               };
@@ -293,14 +306,7 @@
           >
             <div class="mb-3">
               <label for="mainName" class="form-label small">Bezeichnung</label>
-              <input
-                type="text"
-                id="mainName"
-                name="name"
-                class="form-control bg-secondary text-white border-0"
-                bind:value={newMainName}
-                required
-              />
+              <input type="text" id="mainName" name="name" class="form-control bg-secondary text-white border-0" bind:value={newMainName} required />
             </div>
             <button type="submit" class="btn btn-primary w-100">Hauptkategorie anlegen</button>
           </form>
@@ -312,19 +318,9 @@
           <h3 class="h5 mb-0">Kategorien-Struktur</h3>
           <div class="input-group shadow-sm" style="max-width: 300px;">
             <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
-            <input
-              type="text"
-              class="form-control border-start-0 ps-0"
-              placeholder="Kategorien suchen..."
-              bind:value={searchQuery}
-            />
+            <input type="text" class="form-control border-start-0 ps-0" placeholder="Kategorien suchen..." bind:value={searchQuery} />
             {#if searchQuery !== ""}
-              <button
-                class="btn btn-outline-secondary border-start-0 bg-white"
-                type="button"
-                aria-label="Suche zurücksetzen"
-                onclick={() => (searchQuery = "")}
-              ><i class="bi bi-x-lg"></i></button>
+              <button class="btn btn-outline-secondary border-start-0 bg-white" type="button" onclick={() => (searchQuery = "")}><i class="bi bi-x-lg"></i></button>
             {/if}
           </div>
         </div>
@@ -342,26 +338,17 @@
                       return async ({ result, update }) => {
                         await update();
                         if (result.type === "success") {
-                          successMessage = `Kategorie erfolgreich umbenannt!`;
+                          successMessage = `Hauptkategorie erfolgreich umbenannt!`;
                           editingMainId = null;
-                          setTimeout(() => {
-                            successMessage = "";
-                          }, 3000);
+                          setTimeout(() => { successMessage = ""; }, 3000);
                         }
                       };
                     }}
                   >
                     <input type="hidden" name="id" value={category._id} />
-                    <input
-                      type="text"
-                      name="newName"
-                      class="form-control form-control-sm"
-                      bind:value={editMainName}
-                      required
-                      use:focus
-                    />
+                    <input type="text" name="newName" class="form-control form-control-sm" bind:value={editMainName} required use:focus />
                     <button type="submit" class="btn btn-sm btn-success flex-shrink-0"><i class="bi bi-check-lg"></i> Speichern</button>
-                    <button type="button" class="btn btn-sm btn-outline-secondary flex-shrink-0" aria-label="Abbrechen" onclick={cancelEditMain}><i class="bi bi-x-lg"></i></button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary flex-shrink-0" onclick={cancelEditMain}><i class="bi bi-x-lg"></i></button>
                   </form>
                 {:else}
                   {@const mainProductCount = data.articles?.filter((a) => a.mainCategoryId === category._id).length || 0}
@@ -394,11 +381,14 @@
                   <div class="d-flex align-items-center gap-1">
                     <button
                       type="button"
-                      class="btn btn-sm btn-outline-secondary border-0"
-                      aria-label="Umbenennen"
+                      class="btn btn-sm text-secondary border-0 p-1 me-1"
+                      aria-label="Hauptkategorie umbenennen"
+                      title="Hauptkategorie bearbeiten"
                       onclick={() => startEditMain(category)}
                     >
-                      <i class="bi bi-pencil"></i>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M9.405 1.05c-.413-1.4-2.397-1.4-2.81 0l-.1.34a1.464 1.464 0 0 1-2.105.872l-.31-.17c-1.283-.698-2.686.705-1.987 1.987l.169.311c.446.82.023 1.841-.872 2.105l-.34.1c-1.4.413-1.4 2.397 0 2.81l.34.1a1.464 1.464 0 0 1 .872 2.105l-.17.31c-.698 1.283.705 2.686 1.987 1.987l.311-.169a1.464 1.464 0 0 1 2.105.872l.1.34c.413 1.4 2.397 1.4 2.81 0l.1-.34a1.464 1.464 0 0 1 2.105-.872l.31.17c1.283.698 2.686-.705 1.987-1.987l-.169-.311a1.464 1.464 0 0 1 .872-2.105l.34-.1c1.4-.413 1.4-2.397 0-2.81l-.34-.1a1.464 1.464 0 0 1-.872-2.105l.17-.31c.698-1.283-.705-2.686-1.987-1.987l-.311.169a1.464 1.464 0 0 1-2.105-.872l-.1-.34zM8 10.93a2.929 2.929 0 1 1 0-5.86 2.929 2.929 0 0 1 0 5.858z"/>
+                      </svg>
                     </button>
 
                     <button
@@ -409,19 +399,14 @@
                       onclick={() => {
                         if (!category.subcategories || category.subcategories.length === 0) {
                           const hasArticles = data.articles?.some((a) => a.mainCategoryId === category._id);
-
                           if (hasArticles) {
                             alert(`Die Hauptkategorie "${category.name}" kann nicht gelöscht werden, da sich noch Artikel darin befinden.`);
                             return;
                           }
-
                           if (confirm(`Möchten Sie die Hauptkategorie "${category.name}" wirklich löschen?`)) {
                             const formData = new FormData();
                             formData.append("mainId", category._id);
-                            fetch("?/deleteMain", {
-                              method: "POST",
-                              body: formData,
-                            }).then(() => location.reload());
+                            fetch("?/deleteMain", { method: "POST", body: formData }).then(() => location.reload());
                           }
                         } else {
                           confirmDeleteMainId = category._id;
@@ -439,7 +424,7 @@
 
                     <button
                       type="button"
-                      class="btn btn-sm btn-outline-secondary border-0"
+                      class="btn btn-sm btn-outline-secondary border-0 ms-2"
                       aria-label="Auf/Zuklappen"
                       onclick={() => toggleCategory(category._id)}
                     >
@@ -454,55 +439,24 @@
                   {#if confirmDeleteMainId === category._id}
                     <div class="bg-white border border-danger rounded p-4 mb-4 animate-fade-in position-relative shadow-sm" style="border-width: 2px !important;">
                       <h5 class="text-danger d-flex align-items-center gap-2 mb-3 fw-bold">
-                        <i class="bi bi-exclamation-triangle-fill fs-4"></i>
-                        Sicherheitsrelevante Löschung
+                        <i class="bi bi-exclamation-triangle-fill fs-4"></i> Sicherheitsrelevante Löschung
                       </h5>
                       <p class="text-dark mb-4" style="font-size: 0.95rem;">
                         Um die Hauptkategorie <strong>"{category.name}"</strong> zu löschen, müssen Sie zwingend zuerst <strong class="text-danger">alle</strong> darin enthaltenen Unterkategorien manuell entfernen.
                       </p>
 
-                      <p class="mb-2 small fw-bold text-uppercase text-dark">
-                        Schritt 1: Alle Unterkategorien auswählen und löschen
-                      </p>
+                      <p class="mb-2 small fw-bold text-uppercase text-dark">Schritt 1: Alle Unterkategorien auswählen und löschen</p>
 
-                      <form
-                        method="POST"
-                        action="?/bulkDeleteSubs"
-                        use:enhance={() => {
-                          return async ({ result, update }) => {
-                            await update();
-                            if (result.type === "success") {
-                              successMessage = "Ausgewählte Unterkategorien erfolgreich gelöscht!";
-                              setTimeout(() => (successMessage = ""), 3000);
-                            }
-                          };
-                        }}
-                      >
+                      <form method="POST" action="?/bulkDeleteSubs" use:enhance={() => { return async ({ result, update }) => { await update(); if (result.type === "success") { successMessage = "Ausgewählte Unterkategorien gelöscht!"; setTimeout(() => (successMessage = ""), 3000); } }; }}>
                         <input type="hidden" name="mainId" value={category._id} />
-
                         <div class="border rounded mb-4" style="max-height: 250px; overflow-y: auto;">
                           {#each [...category.subcategories].sort((a, b) => a.name.localeCompare(b.name, "de")) as sub}
                             <div class="form-check p-3 m-0 d-flex align-items-center gap-3 border-bottom form-check-custom">
-                              <input
-                                class="form-check-input mt-0 ms-2"
-                                type="checkbox"
-                                name="subIds"
-                                value={sub.id}
-                                id="bulk-{sub.id}"
-                                style="width: 1.25em; height: 1.25em;"
-                                required
-                              />
-                              <label
-                                class="form-check-label text-dark fw-bold w-100"
-                                for="bulk-{sub.id}"
-                                style="cursor:pointer; font-size: 1rem;"
-                              >
-                                {sub.name}
-                              </label>
+                              <input class="form-check-input mt-0 ms-2" type="checkbox" name="subIds" value={sub.id} id="bulk-{sub.id}" style="width: 1.25em; height: 1.25em;" required />
+                              <label class="form-check-label text-dark fw-bold w-100" for="bulk-{sub.id}" style="cursor:pointer; font-size: 1rem;">{sub.name}</label>
                             </div>
                           {/each}
                         </div>
-
                         <div class="d-flex justify-content-between align-items-center gap-3">
                           <button type="button" class="btn btn-outline-secondary px-4" onclick={() => (confirmDeleteMainId = null)}>Abbrechen</button>
                           <button type="submit" class="btn btn-danger fw-bold shadow-sm px-4">Ausgewählte Unterkategorien löschen</button>
@@ -511,30 +465,10 @@
 
                       {#if category.subcategories.length === 0}
                         <div class="animate-fade-in mt-4 border-top pt-4">
-                          <p class="mb-3 small fw-bold text-uppercase text-success">
-                            Schritt 2: Leere Hauptkategorie löschen
-                          </p>
-                          <form
-                            method="POST"
-                            action="?/deleteMain"
-                            onsubmit={(e) => {
-                              if (!confirm(`Möchten Sie die nun leere Hauptkategorie "${category.name}" endgültig löschen?`)) {
-                                e.preventDefault();
-                              }
-                            }}
-                            use:enhance={() => {
-                              return async ({ result, update }) => {
-                                await update();
-                                if (result.type === "success") {
-                                  location.reload();
-                                }
-                              };
-                            }}
-                          >
+                          <p class="mb-3 small fw-bold text-uppercase text-success">Schritt 2: Leere Hauptkategorie löschen</p>
+                          <form method="POST" action="?/deleteMain" onsubmit={(e) => { if (!confirm(`Möchten Sie die nun leere Hauptkategorie "${category.name}" endgültig löschen?`)) e.preventDefault(); }} use:enhance={() => { return async ({ result, update }) => { await update(); if (result.type === "success") location.reload(); }; }}>
                             <input type="hidden" name="mainId" value={category._id} />
-                            <button type="submit" class="btn btn-outline-danger w-100 fw-bold shadow-sm">
-                              Hauptkategorie "{category.name}" endgültig löschen
-                            </button>
+                            <button type="submit" class="btn btn-outline-danger w-100 fw-bold shadow-sm">Hauptkategorie "{category.name}" endgültig löschen</button>
                           </form>
                         </div>
                       {/if}
@@ -550,75 +484,101 @@
 
                     <div class="d-flex flex-column gap-2 mb-4">
                       {#each sortedSubs as sub}
-                        {@const subProductCount = data.articles?.filter((a) => a.subcategoryId === sub.id).length || 0}
-                        
-                        <div class="bg-white text-dark border rounded px-3 py-3 shadow-sm d-flex justify-content-between align-items-center">
-                          <div class="d-flex flex-column">
-                            <span class="fw-bold fs-6">{sub.name}</span>
-
-                            <div class="d-flex align-items-center gap-3 mt-1">
-                              <small class="text-muted">
-                                <i class="bi bi-funnel me-1"></i>
-                                {sub.allowed_attributes?.length || 0} Filter
-                              </small>
-                              <small class="text-muted">
-                                <i class="bi bi-box-seam me-1"></i>
-                                {subProductCount} {subProductCount === 1 ? "Produkt" : "Produkte"}
-                              </small>
-                            </div>
-                          </div>
-                          <div class="d-flex align-items-center gap-2">
-                            <button
-                              type="button"
-                              class="btn btn-sm btn-outline-primary fw-bold px-3 shadow-sm"
-                              onclick={() => openAttributeEdit(category._id, sub.id)}
-                            >
-                              <i class="bi bi-sliders me-1"></i> Filter bearbeiten
-                            </button>
-
+                        {#if editingSubId === sub.id && editingSubMainId === category._id}
+                          <div class="bg-white text-dark border rounded px-3 py-3 shadow-sm">
                             <form
                               method="POST"
-                              action="?/deleteSub"
-                              style="margin: 0; display: inline-block;"
-                              onsubmit={(e) => {
-                                const hasArticles = data.articles?.some((a) => a.subcategoryId === sub.id);
-                                if (hasArticles) {
-                                  alert(`Die Unterkategorie "${sub.name}" kann nicht gelöscht werden, da sich noch Artikel darin befinden.`);
-                                  e.preventDefault();
-                                  return;
-                                }
-
-                                if (!confirm(`Möchten Sie die Unterkategorie "${sub.name}" wirklich löschen?`)) {
-                                  e.preventDefault();
-                                }
-                              }}
+                              action="?/renameSub"
+                              class="w-100 d-flex gap-2 m-0"
                               use:enhance={() => {
                                 return async ({ result, update }) => {
                                   await update();
                                   if (result.type === "success") {
-                                    successMessage = "Unterkategorie erfolgreich gelöscht!";
-                                    setTimeout(() => (successMessage = ""), 3000);
+                                    successMessage = `Unterkategorie erfolgreich umbenannt!`;
+                                    cancelEditSub();
+                                    setTimeout(() => { successMessage = ""; }, 3000);
                                   }
                                 };
                               }}
                             >
                               <input type="hidden" name="mainId" value={category._id} />
                               <input type="hidden" name="subId" value={sub.id} />
-                              <button type="submit" class="btn btn-sm text-danger border-0 p-1" aria-label="Unterkategorie löschen" title="Unterkategorie löschen">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
-                                  <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z" />
-                                  <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z" />
-                                </svg>
-                              </button>
+                              <input type="text" name="newName" class="form-control form-control-sm" bind:value={editSubName} required use:focus />
+                              <button type="submit" class="btn btn-sm btn-success flex-shrink-0"><i class="bi bi-check-lg"></i> Speichern</button>
+                              <button type="button" class="btn btn-sm btn-outline-secondary flex-shrink-0" onclick={cancelEditSub}><i class="bi bi-x-lg"></i></button>
                             </form>
                           </div>
-                        </div>
+                        
+                        {:else}
+                          {@const subProductCount = data.articles?.filter((a) => a.subcategoryId === sub.id).length || 0}
+                          
+                          <div class="bg-white text-dark border rounded px-3 py-3 shadow-sm d-flex justify-content-between align-items-center">
+                            <div class="d-flex flex-column">
+                              <span class="fw-bold fs-6">{sub.name}</span>
+
+                              <div class="d-flex align-items-center gap-3 mt-1">
+                                <small class="text-muted"><i class="bi bi-funnel me-1"></i> {sub.allowed_attributes?.length || 0} Filter</small>
+                                <small class="text-muted"><i class="bi bi-box-seam me-1"></i> {subProductCount} {subProductCount === 1 ? "Produkt" : "Produkte"}</small>
+                              </div>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                              <button type="button" class="btn btn-sm btn-outline-primary fw-bold px-3 shadow-sm me-2" onclick={() => openAttributeEdit(category._id, sub.id)}>
+                                <i class="bi bi-sliders me-1"></i> Filter zuweisen
+                              </button>
+
+                              <button
+                                type="button"
+                                class="btn btn-sm text-secondary border-0 p-1 me-1"
+                                aria-label="Unterkategorie bearbeiten"
+                                title="Unterkategorie bearbeiten"
+                                onclick={() => startEditSub(category._id, sub)}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                                  <path d="M9.405 1.05c-.413-1.4-2.397-1.4-2.81 0l-.1.34a1.464 1.464 0 0 1-2.105.872l-.31-.17c-1.283-.698-2.686.705-1.987 1.987l.169.311c.446.82.023 1.841-.872 2.105l-.34.1c-1.4.413-1.4 2.397 0 2.81l.34.1a1.464 1.464 0 0 1 .872 2.105l-.17.31c-.698 1.283.705 2.686 1.987 1.987l.311-.169a1.464 1.464 0 0 1 2.105.872l.1.34c.413 1.4 2.397 1.4 2.81 0l.1-.34a1.464 1.464 0 0 1 2.105-.872l.31.17c1.283.698 2.686-.705 1.987-1.987l-.169-.311a1.464 1.464 0 0 1 .872-2.105l.34-.1c1.4-.413 1.4-2.397 0-2.81l-.34-.1a1.464 1.464 0 0 1-.872-2.105l.17-.31c.698-1.283-.705-2.686-1.987-1.987l-.311.169a1.464 1.464 0 0 1-2.105-.872l-.1-.34zM8 10.93a2.929 2.929 0 1 1 0-5.86 2.929 2.929 0 0 1 0 5.858z"/>
+                                </svg>
+                              </button>
+
+                              <form
+                                method="POST"
+                                action="?/deleteSub"
+                                style="margin: 0; display: inline-block;"
+                                onsubmit={(e) => {
+                                  const hasArticles = data.articles?.some((a) => a.subcategoryId === sub.id);
+                                  if (hasArticles) {
+                                    alert(`Die Unterkategorie "${sub.name}" kann nicht gelöscht werden, da sich noch Artikel darin befinden.`);
+                                    e.preventDefault();
+                                    return;
+                                  }
+                                  if (!confirm(`Möchten Sie die Unterkategorie "${sub.name}" wirklich löschen?`)) {
+                                    e.preventDefault();
+                                  }
+                                }}
+                                use:enhance={() => {
+                                  return async ({ result, update }) => {
+                                    await update();
+                                    if (result.type === "success") {
+                                      successMessage = "Unterkategorie gelöscht!";
+                                      setTimeout(() => (successMessage = ""), 3000);
+                                    }
+                                  };
+                                }}
+                              >
+                                <input type="hidden" name="mainId" value={category._id} />
+                                <input type="hidden" name="subId" value={sub.id} />
+                                <button type="submit" class="btn btn-sm text-danger border-0 p-1" aria-label="Unterkategorie löschen" title="Unterkategorie löschen">
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                                    <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z" />
+                                    <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z" />
+                                  </svg>
+                                </button>
+                              </form>
+                            </div>
+                          </div>
+                        {/if}
                       {/each}
                     </div>
                   {:else}
-                    <p class="text-muted small fst-italic mb-4">
-                      Noch keine Unterkategorien vorhanden.
-                    </p>
+                    <p class="text-muted small fst-italic mb-4">Noch keine Unterkategorien vorhanden.</p>
                   {/if}
 
                   {#if searchQuery.trim() === ""}
@@ -633,35 +593,12 @@
                         </div>
                       {/if}
 
-                      <label for="subName-{category._id}" class="form-label small fw-bold text-dark">
-                        Neue Unterkategorie in "{category.name}" hinzufügen
-                      </label>
-                      <form
-                        method="POST"
-                        action="?/createSub"
-                        use:enhance={() => {
-                          return async ({ update }) => {
-                            await update();
-                            showSubGuide = false; 
-                            newSubName = "";
-                          };
-                        }}
-                      >
+                      <label for="subName-{category._id}" class="form-label small fw-bold text-dark">Neue Unterkategorie in "{category.name}" hinzufügen</label>
+                      <form method="POST" action="?/createSub" use:enhance={() => { return async ({ update }) => { await update(); showSubGuide = false; newSubName = ""; }; }}>
                         <input type="hidden" name="mainId" value={category._id} />
                         <div class="input-group">
-                          <input
-                            type="text"
-                            id="subName-{category._id}"
-                            name="subName"
-                            class="form-control"
-                            placeholder="z.B. Schrauben..."
-                            bind:value={newSubName}
-                            required
-                            use:focus
-                          />
-                          <button class="btn btn-primary px-4 fw-bold" type="submit">
-                            <i class="bi bi-plus-lg me-1"></i> Hinzufügen
-                          </button>
+                          <input type="text" id="subName-{category._id}" name="subName" class="form-control" placeholder="z.B. Schrauben..." bind:value={newSubName} required use:focus />
+                          <button class="btn btn-primary px-4 fw-bold" type="submit"><i class="bi bi-plus-lg me-1"></i> Hinzufügen</button>
                         </div>
                       </form>
                     </div>
@@ -680,73 +617,14 @@
 </div>
 
 <style>
-  .animate-fade-in {
-    animation: fadeIn 0.3s ease-out;
-  }
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-      transform: translateY(-10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  .form-check-custom {
-    transition: all 0.2s ease-in-out;
-  }
-  .form-check-custom:hover {
-    background-color: #f8f9fa;
-  }
-
-  .bg-dark label {
-    color: white !important;
-  }
-
-  h2,
-  h3 {
-    color: #22c55e;
-  }
-
-  .info-guide-bubble {
-    position: absolute;
-    bottom: 110%; 
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: #0d6efd;
-    color: white;
-    padding: 12px 16px;
-    border-radius: 12px;
-    font-size: 0.9rem;
-    z-index: 100;
-    width: 90%;
-    max-width: 350px;
-  }
-
-  .bubble-arrow {
-    position: absolute;
-    top: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    border-left: 10px solid transparent;
-    border-right: 10px solid transparent;
-    border-top: 10px solid #0d6efd;
-  }
-
-  @keyframes popIn {
-    0% {
-      opacity: 0;
-      transform: translateX(-50%) scale(0.9) translateY(10px);
-    }
-    100% {
-      opacity: 1;
-      transform: translateX(-50%) scale(1) translateY(0);
-    }
-  }
-
-  .animate-pop-in {
-    animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-  }
+  .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+  .form-check-custom { transition: all 0.2s ease-in-out; }
+  .form-check-custom:hover { background-color: #f8f9fa; }
+  .bg-dark label { color: white !important; }
+  h2, h3 { color: #22c55e; }
+  .info-guide-bubble { position: absolute; bottom: 110%; left: 50%; transform: translateX(-50%); background-color: #0d6efd; color: white; padding: 12px 16px; border-radius: 12px; font-size: 0.9rem; z-index: 100; width: 90%; max-width: 350px; }
+  .bubble-arrow { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 10px solid #0d6efd; }
+  @keyframes popIn { 0% { opacity: 0; transform: translateX(-50%) scale(0.9) translateY(10px); } 100% { opacity: 1; transform: translateX(-50%) scale(1) translateY(0); } }
+  .animate-pop-in { animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
 </style>

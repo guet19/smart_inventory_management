@@ -18,8 +18,6 @@
             }, 3000);
         }
     }
-
-    import SearchableSelect from '$lib/components/SearchableSelect.svelte';
     
     export let data;
     const { categories, articles, attributes } = data;
@@ -31,6 +29,9 @@
     let searchQuery = "";
     let selectedMainCategoryId = "";
     let selectedSubcategoryId = "";
+
+    // --- NEU: State für die Sortierung ---
+    let currentSort = "name_asc";
 
    // 1. HAUPTKATEGORIEN FILTERN
     $: mainCategoryOptions = categories
@@ -59,7 +60,6 @@
     }
 
     // --- 2. BASIS-FILTER (Kategorie, Suche & GTIN) ---
-    // GEFIXED: Absturzsicherung mit || "" für leere Datenbankeinträge
     $: baseFilteredArticles = articles.filter(article => {
         const searchStr = (searchQuery || "").toLowerCase();
         const safeTitle = article.title || "";
@@ -135,7 +135,6 @@
     })();
 
     // --- FILTER-SUCHE IN DER SIDEBAR ---
-    // GEFIXED: Absturzsicherung mit || "" 
     let sidebarAttributeSearch = "";
     $: visibleSidebarFilters = availableSidebarFilters.filter(filter => 
         (filter.label || "").toLowerCase().includes((sidebarAttributeSearch || "").toLowerCase())
@@ -150,7 +149,6 @@
     let activeFilterModal = null;    
     let tempSelectedOptions = [];    
     
-    // GEFIXED: Absturzsicherung mit || ""
     let modalSearchQuery = "";
     $: filteredModalOptions = activeFilterModal 
         ? activeFilterModal.options.filter(opt => String(opt || "").toLowerCase().includes((modalSearchQuery || "").toLowerCase()))
@@ -252,8 +250,9 @@
         selectedSubcategoryId = "";
     }
 
-    // --- 5. FINALES ARRAY FÜR DIE KARTEN ---
+    // --- 5. FINALES ARRAY FÜR DIE KARTEN (INKL. SORTIERUNG) ---
     $: finalFilteredArticles = baseFilteredArticles.filter(article => {
+        // Zuerst filtern
         for (const [attrId, selectedValues] of Object.entries(selectedAttributeFilters)) {
             if (selectedValues && selectedValues.length > 0) {
                 const articleValue = article.attributes ? article.attributes[attrId] : undefined;
@@ -276,6 +275,24 @@
             }
         }
         return true; 
+    }).sort((a, b) => {
+        // Danach sortieren
+        switch(currentSort) {
+            case 'name_asc': 
+                return (a.title || "").localeCompare(b.title || "", 'de');
+            case 'name_desc': 
+                return (b.title || "").localeCompare(a.title || "", 'de');
+            case 'stock_desc': 
+                return (b.istBestand || 0) - (a.istBestand || 0);
+            case 'stock_asc': 
+                return (a.istBestand || 0) - (b.istBestand || 0);
+            case 'price_asc': 
+                return (a.price || 0) - (b.price || 0);
+            case 'price_desc': 
+                return (b.price || 0) - (a.price || 0);
+            default: 
+                return 0;
+        }
     });
 </script>
 
@@ -294,13 +311,23 @@
         <div class="filter-left">
             <div class="dropdown-group">
                 <label for="filterMain">Hauptkategorie</label>
-                <SearchableSelect id="filterMain" name="filterMain" options={mainCategoryOptions} bind:value={selectedMainCategoryId} placeholder="Alle Hauptkategorien" />
+                <select id="filterMain" name="filterMain" class="standard-select" bind:value={selectedMainCategoryId}>
+                    <option value="">Alle Hauptkategorien</option>
+                    {#each mainCategoryOptions as opt}
+                        <option value={opt.value}>{opt.label}</option>
+                    {/each}
+                </select>
             </div>
             
             {#if selectedMainCategoryId && subCategoryOptions.length > 0}
                 <div class="dropdown-group">
                     <label for="filterSub">Unterkategorie</label>
-                    <SearchableSelect id="filterSub" name="filterSub" options={subCategoryOptions} bind:value={selectedSubcategoryId} placeholder="Alle Unterkategorien" />
+                    <select id="filterSub" name="filterSub" class="standard-select" bind:value={selectedSubcategoryId}>
+                        <option value="">Alle Unterkategorien</option>
+                        {#each subCategoryOptions as opt}
+                            <option value={opt.value}>{opt.label}</option>
+                        {/each}
+                    </select>
                 </div>
             {/if}
 
@@ -310,6 +337,7 @@
                 </button>
             {/if}
         </div>
+        
         <div class="filter-right">
             <div class="search-box">
                 <label for="search">Suchen (Titel oder GTIN)</label>
@@ -328,9 +356,23 @@
     </div>
 
     <div class="content-wrapper">
-        
         <div class="articles-section">
-            <div class="results-info">Zeige {finalFilteredArticles.length} von {articles.length} Artikeln</div>
+            
+            <div class="results-header">
+                <div class="results-info">Zeige {finalFilteredArticles.length} von {articles.length} Artikeln</div>
+                
+                <div class="sort-wrapper">
+                    <label for="sortSelect" class="sort-label">Sortieren nach:</label>
+                    <select id="sortSelect" class="standard-select sort-select" bind:value={currentSort}>
+                        <option value="name_asc">Name (A-Z)</option>
+                        <option value="name_desc">Name (Z-A)</option>
+                        <option value="stock_desc">Bestand (Höchste zuerst)</option>
+                        <option value="stock_asc">Bestand (Niedrigste zuerst)</option>
+                        <option value="price_asc">Preis (Günstigste zuerst)</option>
+                        <option value="price_desc">Preis (Teuerste zuerst)</option>
+                    </select>
+                </div>
+            </div>
 
             <div class="article-grid">
                 {#each finalFilteredArticles as article}
@@ -551,9 +593,31 @@
     .top-bar { background: #f8fafc; padding: 1.5rem; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 1.5rem; }
     .filter-left { display: flex; gap: 1rem; flex-wrap: wrap; flex: 1; }
     .filter-right { display: flex; width: 100%; max-width: 350px; }
+    
     .dropdown-group, .search-box { display: flex; flex-direction: column; gap: 0.4rem; flex-grow: 1; }
-    .dropdown-group { max-width: 250px; }
+    .dropdown-group { max-width: 350px; } 
+    
     label { font-size: 0.85rem; font-weight: 600; color: #64748b; }
+    
+    /* natives Dropdown */
+    .standard-select {
+        padding: 0.6rem;
+        border: 1px solid #cbd5e1;
+        border-radius: 4px;
+        font-size: 1rem;
+        width: 100%;
+        height: 42px; 
+        box-sizing: border-box;
+        background-color: white;
+        color: #334155;
+        cursor: pointer;
+    }
+
+    .standard-select:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+    }
     
     .btn-clear-categories {
         background: none;
@@ -571,14 +635,30 @@
     .btn-clear-categories:hover { color: #b91c1c; text-decoration: underline; }
     
     .search-mobile-wrapper { display: flex; gap: 0.5rem; width: 100%; }
-    input[type="text"] { padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 1rem; width: 100%; box-sizing: border-box; }
+    
+    input[type="text"] { 
+        padding: 0.6rem; 
+        border: 1px solid #cbd5e1; 
+        border-radius: 4px; 
+        font-size: 1rem; 
+        width: 100%; 
+        height: 42px; 
+        box-sizing: border-box; 
+    }
 
     .btn-mobile-filter { display: none; align-items: center; gap: 0.4rem; background: #f1f5f9; border: 1px solid #cbd5e1; padding: 0.6rem 1rem; border-radius: 4px; font-weight: 600; color: #334155; cursor: pointer; }
     .btn-mobile-filter:hover { background: #e2e8f0; }
 
     .content-wrapper { display: flex; gap: 2rem; align-items: flex-start; }
     .articles-section { flex: 2; }
-    .results-info { font-size: 0.9rem; color: white; margin-bottom: 1.5rem; }
+    
+    /* --- NEU: Styling für den Header und Sortierung --- */
+    .results-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
+    .results-info { font-size: 0.95rem; color: #64748b; font-weight: 500; margin: 0; }
+    .sort-wrapper { display: flex; align-items: center; gap: 0.6rem; }
+    .sort-label { font-size: 0.85rem; font-weight: 600; color: #64748b; white-space: nowrap; margin: 0; }
+    .sort-select { width: auto; min-width: 210px; height: 38px; padding: 0.3rem 0.6rem; font-size: 0.9rem; }
+
     .article-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1.5rem; }
     .card { background: white; border-radius: 8px; border: 1px solid #e2e8f0; display: flex; flex-direction: column; transition: transform 0.2s; }
     .card:hover { transform: translateY(-4px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
@@ -707,7 +787,6 @@
 
     .mobile-overlay { display: none; }
 
-    /* --- HIER SIND DIE BLASEN (VOR DEM @media BLOCK) --- */
     .tooltip-container { position: relative !important; overflow: visible !important; }
     .range-input-col { display: flex; flex-direction: column; width: 45%; gap: 0.3rem; }
     
@@ -752,7 +831,7 @@
         transition: all 0.2s ease;
     }
 
-    /* --- MOBILE STYLES (MUSS GANZ UNTEN BLEIBEN) --- */
+    /* --- MOBILE STYLES --- */
     @media (max-width: 900px) {
         .content-wrapper { flex-direction: column; }
         .filter-right { max-width: 100%; }
@@ -769,5 +848,8 @@
         }
         .sidebar-section.is-open { transform: translateX(0); }
         .btn-close-sidebar { display: block; }
+        
+        /* Sorgt dafür, dass die Sortierung auf mobilen Geräten unter der Artikelanzahl steht */
+        .results-header { align-items: flex-start; flex-direction: column; }
     }
 </style>

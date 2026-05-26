@@ -125,18 +125,23 @@
 </script>
 
 <div class="container mt-4 mb-5">
-  <div
-    class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3"
-  >
+  <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
     <h2>Filtermöglichkeiten verwalten</h2>
-    {#if activeAttributeId}
-      <button
-        class="btn btn-outline-secondary shadow-sm fw-bold"
-        onclick={closeEditMode}
-      >
-        <i class="bi bi-arrow-left me-1"></i> Zurück zur Übersicht
-      </button>
-    {/if}
+    
+    <div class="d-flex align-items-center gap-2">
+      <a href="/einstellungen/category" class="btn btn-primary shadow-sm fw-bold">
+        <i class="bi bi-folder2-open me-1"></i> Zurück zur Kategorienverwaltung
+      </a>
+
+      {#if activeAttributeId}
+        <button
+          class="btn btn-outline-secondary shadow-sm fw-bold"
+          onclick={closeEditMode}
+        >
+          <i class="bi bi-x-lg me-1"></i> Ansicht schließen
+        </button>
+      {/if}
+    </div>
   </div>
 
   {#if returnToSubName}

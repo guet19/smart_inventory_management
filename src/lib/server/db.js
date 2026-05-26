@@ -92,6 +92,21 @@ async function renameMainCategory(id, newName) {
     }
 }
 
+// NEU: Funktion zum Umbenennen der Unterkategorie
+async function renameSubcategory(mainCategoryId, subCategoryId, newName) {
+    try {
+        const collection = db.collection("categories");
+        const result = await collection.updateOne(
+            { _id: new ObjectId(mainCategoryId), "subcategories.id": subCategoryId },
+            { $set: { "subcategories.$.name": newName } }
+        );
+        return result;
+    } catch (error) {
+        console.error("Fehler beim Umbenennen der Unterkategorie:", error);
+        throw error;
+    }
+}
+
 async function updateSubcategoryAttributes(mainCategoryId, subCategoryId, attributeIds) {
     try {
         const collection = db.collection("categories");
@@ -249,20 +264,15 @@ async function getArticleById(id) {
     }
 }
 
-// ==========================================
-// ALLE FUNKTIONEN EXPORTIEREN
-// ==========================================
 export default { 
-    // Kategorien
     getCategories, 
     createMainCategory,
     createSubcategory,
     deleteSubcategory,
     deleteMainCategory, 
     renameMainCategory,
+    renameSubcategory, // <--- NEU
     updateSubcategoryAttributes,
-    
-    // Attribute
     getFilterAttributes, 
     createFilterAttribute,
     deleteFilterAttribute,
@@ -270,8 +280,6 @@ export default {
     getFilterAttributeByLabel,
     addOptionToFilterAttribute,
     removeOptionFromFilterAttribute,
-    
-    // Artikel
     createArticle,
     getArticles,
     getArticleById
