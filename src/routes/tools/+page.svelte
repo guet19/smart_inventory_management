@@ -1,12 +1,10 @@
 <script>
-    // Wir lagern das Bookmarklet-JavaScript in eine Variable aus. 
-    // Dadurch kommt der Svelte-Compiler nicht mit den geschweiften Klammern { } durcheinander.
-    // Wichtig: \s muss in einem String als \\s escaped werden!
-    const bookmarkletCode = "javascript:(function(){var title=document.title;var url=window.location.href;var descMeta=document.querySelector('meta[name=\"description\"]')||document.querySelector('meta[property=\"og:description\"]');var desc=descMeta?descMeta.content:document.body.innerText;desc=desc.replace(/\\s+/g,' ').trim().substring(0,800);var imgMeta=document.querySelector('meta[property=\"og:image\"]')||document.querySelector('meta[name=\"twitter:image\"]');var imgUrl=imgMeta?imgMeta.content:'';if(!imgUrl){var firstImg=document.querySelector('img:not(header img, footer img, .icon img)');if(firstImg)imgUrl=firstImg.src;}var target='https://sortify-inventory-management.netlify.app/addarticle?title='+encodeURIComponent(title)+'&url='+encodeURIComponent(url)+'&desc='+encodeURIComponent(desc)+'&img='+encodeURIComponent(imgUrl);window.open(target,'_blank');})();";
+    // OPTIMIERT: Das Bookmarklet sucht nun aktiv nach strukturierten JSON-LD Shop-Daten
+    // und fügt diese als "echte" HTML-Tags in die Payload ein, damit das Backend sie parsen kann.
+    const bookmarkletCode = "javascript:(function(){var title=document.title;var url=window.location.href;var payload='';var scripts=document.querySelectorAll('script[type=\"application/ld+json\"]');scripts.forEach(function(s){if(s.innerText.includes('\"Product\"')){payload+=s.outerHTML;}});var descMeta=document.querySelector('meta[name=\"description\"]')||document.querySelector('meta[property=\"og:description\"]');var descText=descMeta?descMeta.content:document.body.innerText;descText=descText.replace(/\\s+/g,' ').trim().substring(0,500);payload+='<div>'+descText+'</div>';payload=payload.substring(0,1500);var imgMeta=document.querySelector('meta[property=\"og:image\"]')||document.querySelector('meta[name=\"twitter:image\"]');var imgUrl=imgMeta?imgMeta.content:'';if(!imgUrl){var firstImg=document.querySelector('img:not(header img, footer img, .icon img)');if(firstImg)imgUrl=firstImg.src;}var target='https://sortify-inventory-management.netlify.app/addarticle?title='+encodeURIComponent(title)+'&url='+encodeURIComponent(url)+'&desc='+encodeURIComponent(payload)+'&img='+encodeURIComponent(imgUrl);window.open(target,'_blank');})();";
 
-    // Das onclick-Event wird in Svelte "The Svelte Way" gehandhabt
     function handleClick(event) {
-        event.preventDefault(); // Verhindert, dass der Link wie ein normaler Link geklickt wird
+        event.preventDefault(); 
         alert('Bitte klicke nicht auf den Button, sondern ZIEHE ihn in deine Lesezeichenleiste oben im Browser!');
     }
 </script>
@@ -81,7 +79,7 @@
 </div>
 
 <style>
-    /* Globales Body-Styling für Svelte */
+    /* Globales Body-Styling korrigiert: .body zu :global(body) geändert */
     .body { 
         font-family: 'Space Grotesk', sans-serif; 
         color: #334155; 
@@ -95,10 +93,9 @@
         margin: 0 auto;
         display: flex;
         flex-direction: column;
-        gap: 30px; /* Abstand zwischen den Cards */
+        gap: 30px; 
     }
 
-    /* Gemeinsames Styling für beide weiße Boxen */
     .card {
         background: #ffffff;
         padding: 40px;
@@ -111,7 +108,6 @@
         text-align: center;
     }
 
-    /* Typografie & Farben */
     h1 { 
         color: #22c55e; 
         margin-top: 0; 
@@ -133,7 +129,6 @@
         margin-bottom: 8px;
     }
 
-    /* Installations-Bereich */
     .instruction { 
         font-size: 1.1rem; 
         color: #64748b; 
@@ -168,7 +163,6 @@
         color: #94a3b8;
     }
 
-    /* Anleitungs-Bereich */
     .guide-content {
         text-align: left;
     }
@@ -199,7 +193,6 @@
         margin-bottom: 5px;
     }
 
-    /* Responsive Anpassungen für Mobile */
     @media (max-width: 640px) {
         .card {
             padding: 25px 20px;
