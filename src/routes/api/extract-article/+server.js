@@ -42,7 +42,8 @@ WICHTIGE REGELN:
 2. PREIS: Wenn der Artikel in einer Packung verkauft wird, fülle "totalPackPrice" (Gesamtpreis) und "packQuantity" (Stückzahl als Zahl) aus. Bei Einzelartikeln fülle nur "price" aus.
 3. GTIN/EAN: Suche intensiv nach einer GTIN, EAN oder eindeutigen Herstellernummer und trage sie in "gtin" ein.
 4. ZAHLEN & EINHEITEN: Wenn ein Attribut den "ui_type": "number" hat, antworte AUSSCHLIESSLICH mit der nackten Zahl (Dezimalstellen mit Punkt). Entferne jeglichen Text und Einheiten! (Richtig: "20", Falsch: "20 mm").
-5. FEHLENDE DATEN: Erfinde nichts. Was nicht im Text steht, wird als null zurückgegeben.`,
+5. LIEFERANT / SHOP: Mit "supplier" ist zwingend der Name des Online-Shops gemeint, bei dem der Artikel gefunden wurde (z.B. "JUMBO", "Galaxus", "Brack"). Nutze die übergebenen Daten (URL, Shop-Tag), um diesen Namen abzuleiten. Trage den Shop-Namen in "supplier" ein. Die eigentliche Marke des Produkts (z.B. 'Spax' oder 'Bosch') ist hier FALSCH und darf nicht in dieses Feld.
+6. FEHLENDE DATEN: Erfinde nichts. Was nicht im Text steht, wird als null zurückgegeben.`,
             generationConfig: { 
                 responseMimeType: "application/json", 
                 temperature: 0.1 
@@ -58,7 +59,7 @@ Erwartetes JSON-Format:
 {
     "title": "Sauberer Produktname",
     "description": "Hilfreiche Beschreibung (max. 3 Sätze)",
-    "supplier": "Name des Herstellers",
+    "supplier": "Name des Lieferanten/Shop",
     "gtin": "7611123456789",
     "price": 12.50,
     "totalPackPrice": null,
