@@ -18,7 +18,7 @@
     let title = "";
     let description = "";
     let supplier = "";
-    let gtin = ""; // NEU: GTIN Variable
+    let gtin = ""; 
     let price = "";
     let orderLink = "";
     let importUrl = "";
@@ -26,6 +26,8 @@
 
     let totalPackPrice = "";
     let packQuantity = "";
+    
+    let istBestand = "";
 
     $: if (totalPackPrice && packQuantity && parseFloat(packQuantity) > 0) {
         price = (parseFloat(totalPackPrice) / parseFloat(packQuantity)).toFixed(2);
@@ -44,6 +46,13 @@
     let numberWarnings = {};
     let warningTimeouts = {};
 
+    // --- Echtzeit-Fehlerbereinigung ---
+    $: if (selectedMainCategoryId) formErrors.mainCategory = false;
+    $: if (selectedSubcategoryId) formErrors.subCategory = false;
+    $: if (title && title.trim() !== "") formErrors.title = false;
+    $: if (description && description.trim() !== "") formErrors.description = false;
+    $: if (istBestand !== null && istBestand !== undefined && istBestand.toString().trim() !== "") formErrors.istBestand = false;
+
     // --- Bookmarklet & KI Workflow States ---
     let isFromBookmarklet = false;
     let aiChoiceMade = false;
@@ -51,7 +60,10 @@
     let showAIWarning = false;
 
     // Kategorien-Logik
-    $: mainCategoryOptions = categories.map((cat) => ({ value: cat._id, label: cat.name }));
+    $: mainCategoryOptions = categories
+        .filter((cat) => cat.subcategories && cat.subcategories.length > 0)
+        .map((cat) => ({ value: cat._id, label: cat.name }));
+
     $: selectedMainCategory = categories.find((cat) => cat._id === selectedMainCategoryId) || null;
     $: availableSubcategories = selectedMainCategory ? selectedMainCategory.subcategories : [];
     $: subCategoryOptions = availableSubcategories.map((sub) => ({ value: sub.id, label: sub.name }));
@@ -64,7 +76,7 @@
 
     $: selectedSubcategory = availableSubcategories.find((sub) => sub.id === selectedSubcategoryId) || null;
     $: activeAttributes = selectedSubcategory
-        ? attributes.filter((attr) => selectedSubcategory.allowed_attributes.includes(attr._id))
+        ? attributes.filter((attr) => selectedSubcategory.allowed_attributes.includes(attr._id)).sort((a, b) => a.label.localeCompare(b.label, 'de', { sensitivity: 'base' }))
         : [];
 
     // --- REAKTIVER URL-IMPORT (Bookmarklet Empfang) ---
@@ -92,15 +104,7 @@
 
     // --- Trigger für die automatisierte KI-Frage ---
     $: if (isFromBookmarklet && !aiChoiceMade) {
-        let isComplete = false;
-        if (selectedMainCategoryId) {
-            if (subCategoryOptions.length > 0) {
-                if (selectedSubcategoryId) isComplete = true;
-            } else {
-                isComplete = true;
-            }
-        }
-        showAIPrompt = isComplete;
+        showAIPrompt = !!(selectedMainCategoryId && selectedSubcategoryId);
     }
 
     function acceptAI() {
@@ -127,8 +131,6 @@
                     expectedAttributes: activeAttributes.map((a) => ({
                         id: a._id,
                         name: a.label,
-                        // NEU: Wir senden der KI den Typ und die Einheit mit, 
-                        // damit sie weiss, wo nur Zahlen erlaubt sind!
                         ui_type: a.ui_type,
                         unit: a.unit || "", 
                         options: a.options || [],
@@ -141,10 +143,7 @@
                 if (result.title) title = result.title;
                 if (result.description) description = result.description;
                 if (result.supplier) supplier = result.supplier;
-                
-                // NEU: Nimmt die GTIN von der KI entgegen
                 if (result.gtin) gtin = result.gtin;
-
                 if (result.totalPackPrice) totalPackPrice = result.totalPackPrice;
                 if (result.packQuantity) packQuantity = result.packQuantity;
                 
@@ -277,7 +276,7 @@
     </div>
 {/if}
 
-<div class="page-container">
+<div class="page-container space-grotesk">
     <h1>Neuen Artikel anlegen</h1>
 
     {#if showSuccessMessage || form?.success}
@@ -297,7 +296,8 @@
             let hasError = false;
 
             if (!selectedMainCategoryId) { formErrors.mainCategory = true; hasError = true; }
-            if (subCategoryOptions.length > 0 && !selectedSubcategoryId) { formErrors.subCategory = true; hasError = true; }
+            if (!selectedSubcategoryId) { formErrors.subCategory = true; hasError = true; }
+            
             if (!title.trim()) { formErrors.title = true; hasError = true; }
             if (!description.trim()) { formErrors.description = true; hasError = true; }
             if (!formData.get("istBestand") || formData.get("istBestand").toString().trim() === "") { formErrors.istBestand = true; hasError = true; }
@@ -325,26 +325,42 @@
         <div class="form-section">
             <h2>1. Kategorisierung festlegen</h2>
             
-            <div class="form-group tooltip-container">
-                <span class="label-text">Hauptkategorie *</span>
-                <div class="select-wrapper" class:error-highlight={formErrors.mainCategory || (isFromBookmarklet && !aiChoiceMade && !selectedMainCategoryId)}>
-                    <SearchableSelect name="mainCategoryId" options={mainCategoryOptions} bind:value={selectedMainCategoryId} placeholder="Wählen..." />
+            {#if mainCategoryOptions.length === 0}
+                <div class="alert error" style="margin-bottom: 0;">
+                    <strong>Keine Kategorien verfügbar!</strong> Bitte legen Sie zuerst in den Einstellungen eine Hauptkategorie inkl. Unterkategorie an, um Artikel speichern zu können.
                 </div>
-                {#if isFromBookmarklet && !aiChoiceMade && !selectedMainCategoryId}
-                    <div class="info-bubble">Bitte auswählen</div>
-                {/if}
-            </div>
-
-            {#if subCategoryOptions.length > 0}
+            {:else}
                 <div class="form-group tooltip-container">
-                    <span class="label-text">Unterkategorie *</span>
-                    <div class="select-wrapper" class:error-highlight={formErrors.subCategory || (isFromBookmarklet && !aiChoiceMade && selectedMainCategoryId && !selectedSubcategoryId)}>
-                        <SearchableSelect name="subcategoryId" options={subCategoryOptions} bind:value={selectedSubcategoryId} placeholder="Wählen..." />
+                    <span class="label-text">Hauptkategorie *</span>
+                    <div class="select-wrapper" class:error-highlight={formErrors.mainCategory || (isFromBookmarklet && !aiChoiceMade && !selectedMainCategoryId)}>
+                        <select name="mainCategoryId" class="standard-select" bind:value={selectedMainCategoryId}>
+                            <option value="" disabled selected>Wählen...</option>
+                            {#each mainCategoryOptions as opt}
+                                <option value={opt.value}>{opt.label}</option>
+                            {/each}
+                        </select>
                     </div>
-                    {#if isFromBookmarklet && !aiChoiceMade && selectedMainCategoryId && !selectedSubcategoryId}
+                    {#if formErrors.mainCategory || (isFromBookmarklet && !aiChoiceMade && !selectedMainCategoryId)}
                         <div class="info-bubble">Bitte auswählen</div>
                     {/if}
                 </div>
+
+                {#if selectedMainCategoryId}
+                    <div class="form-group tooltip-container">
+                        <span class="label-text">Unterkategorie *</span>
+                        <div class="select-wrapper" class:error-highlight={formErrors.subCategory || (isFromBookmarklet && !aiChoiceMade && selectedMainCategoryId && !selectedSubcategoryId)}>
+                            <select name="subcategoryId" class="standard-select" bind:value={selectedSubcategoryId}>
+                                <option value="" disabled selected>Wählen...</option>
+                                {#each subCategoryOptions as opt}
+                                    <option value={opt.value}>{opt.label}</option>
+                                {/each}
+                            </select>
+                        </div>
+                        {#if formErrors.subCategory || (isFromBookmarklet && !aiChoiceMade && selectedMainCategoryId && !selectedSubcategoryId)}
+                            <div class="info-bubble">Bitte auswählen</div>
+                        {/if}
+                    </div>
+                {/if}
             {/if}
         </div>
 
@@ -360,20 +376,30 @@
 
         <div class="form-section" style={isFromBookmarklet && !aiChoiceMade ? "opacity: 0.5; pointer-events: none;" : ""}>
             <h2>Allgemeine Informationen</h2>
-            <div class="form-group">
+            
+            <div class="form-group tooltip-container">
                 <label for="title" class="label-text">Artikelbezeichnung *</label>
-                <input type="text" id="title" name="title" bind:value={title} class:error-highlight={formErrors.title} required />
+                <input type="text" id="title" name="title" bind:value={title} class:error-highlight={formErrors.title} placeholder="z.B. Schraube M4x20" required />
+                {#if formErrors.title}
+                    <div class="info-bubble">Bitte ausfüllen</div>
+                {/if}
             </div>
 
-            <div class="form-group">
+            <div class="form-group tooltip-container">
                 <label for="description" class="label-text">Beschreibung *</label>
-                <textarea id="description" name="description" bind:value={description} rows="6" class:error-highlight={formErrors.description} required></textarea>
+                <textarea id="description" name="description" bind:value={description} rows="6" class:error-highlight={formErrors.description} placeholder="Genaue Beschreibung des Artikels..." required></textarea>
+                {#if formErrors.description}
+                    <div class="info-bubble">Bitte ausfüllen</div>
+                {/if}
             </div>
 
             <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.2rem;">
-                <div class="form-group" style="margin-bottom: 0;">
+                <div class="form-group tooltip-container" style="margin-bottom: 0;">
                     <label for="istBestand" class="label-text">Ist-Bestand *</label>
-                    <input type="number" id="istBestand" name="istBestand" min="0" class:error-highlight={formErrors.istBestand} required />
+                    <input type="number" id="istBestand" name="istBestand" min="0" bind:value={istBestand} class:error-highlight={formErrors.istBestand} required />
+                    {#if formErrors.istBestand}
+                        <div class="info-bubble">Bitte ausfüllen</div>
+                    {/if}
                 </div>
                 <div class="form-group" style="margin-bottom: 0;">
                     <label for="sollBestand" class="label-text">Soll-Bestand</label>
@@ -411,7 +437,7 @@
 
             <div class="form-group" style="margin-top: 1rem;">
                 <label for="orderLink" class="label-text">Bestelllink</label>
-                <input type="url" id="orderLink" name="orderLink" bind:value={orderLink} />
+                <input type="url" id="orderLink" name="orderLink" bind:value={orderLink} placeholder="https://..." />
             </div>
 
             <div class="image-area">
@@ -424,13 +450,13 @@
                 {/if}
 
                 {#if isCropping}
-                    <div class="crop-editor-box" style="margin-top: 1rem; border: 1px solid #e2e8f0; padding: 1rem; border-radius: 8px;">
+                    <div class="crop-editor-box" style="margin-top: 1rem; border: 1px solid #e2e8f0; padding: 1rem; border-radius: 8px; background: #f8fafc;">
                         <div class="image-workspace" style="margin-bottom: 1rem;">
                             <img bind:this={cropperImageEl} src={imagePreview} alt="Zuschneiden" />
                         </div>
                         <div class="cropper-actions" style="display: flex; gap: 1rem; justify-content: flex-end;">
-                            <button type="button" class="btn-cancel" on:click={cancelCrop} style="color: white; font-weight: bold;">Abbrechen</button>
-                            <button type="button" class="btn-apply" on:click={applyCrop} style="color: white; font-weight: bold;">Speichern</button>
+                            <button type="button" class="btn-cancel" on:click={cancelCrop}>Abbrechen</button>
+                            <button type="button" class="btn-apply" on:click={applyCrop}>Speichern</button>
                         </div>
                     </div>
                 {/if}
@@ -438,7 +464,7 @@
                 {#if imagePreview && !isCropping}
                     <div class="preview-wrap" style="margin-top: 1rem;">
                         <img src={imagePreview} alt="Vorschau" class="final-preview" />
-                        <button type="button" class="btn-remove" on:click={cancelCrop} style="font-weight: bold;">Bild löschen</button>
+                        <button type="button" class="btn-remove" on:click={cancelCrop}>Bild löschen</button>
                     </div>
                 {/if}
             </div>
@@ -503,7 +529,7 @@
         {/if}
 
         <div class="form-actions">
-            <button type="submit" class="btn-submit" disabled={isExtracting}>
+            <button type="submit" class="btn-submit" disabled={isExtracting || mainCategoryOptions.length === 0}>
                 Artikel in Datenbank speichern
             </button>
         </div>
@@ -511,11 +537,14 @@
 </div>
 
 <style>
-    /* Generelles Layout */
-    .page-container { max-width: 800px; margin: 0 auto; padding: 2rem 1rem; }
-    h1 { color: #16a34a; margin-bottom: 2rem; font-size: 1.8rem; }
-    h2 { font-size: 1.1rem; color: #475569; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5rem; margin-bottom: 1.5rem; }
-    .form-section { background: white; padding: 1.5rem; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 2rem; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); transition: opacity 0.3s; }
+    /* Generelles Layout - Helles Theme */
+    ::placeholder { color: #94a3b8; opacity: 1; }
+
+    .page-container { max-width: 800px; margin: 0 auto; padding: 2rem 1rem; color: #334155; }
+    h1 { color: #22c55e; margin-bottom: 2rem; font-size: 1.8rem; }
+    h2 { font-size: 1.1rem; color: #1e293b; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5rem; margin-bottom: 1.5rem; font-weight: 700; }
+    
+    .form-section { background: #ffffff; padding: 1.5rem; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 2rem; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); transition: opacity 0.3s; }
     .form-group { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1.2rem; }
     .attributes-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.2rem; }
 
@@ -551,21 +580,52 @@
         100% { opacity: 1; transform: translate(-50%, 0) scale(1); }
     }
 
-    .error-highlight {
+    /* NEU: Stylisches Dropdown für Haupt- und Unterkategorie */
+    .standard-select {
+        appearance: none;
+        padding: 0.6rem 2.5rem 0.6rem 0.6rem;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        font-size: 1rem;
+        width: 100%;
+        box-sizing: border-box;
+        background-color: #ffffff;
+        color: #334155;
+        cursor: pointer;
+        transition: all 0.2s;
+        /* Custom Dropdown Arrow */
+        background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2394a3b8%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+        background-repeat: no-repeat;
+        background-position: right 0.8rem top 50%;
+        background-size: 0.65rem auto;
+    }
+    .standard-select:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
+    .standard-select:disabled { background-color: #f8fafc; cursor: not-allowed; opacity: 0.7; }
+
+    /* Rote Error Rahmen im Light Theme - Jetzt auch für das native Select gültig! */
+    .error-highlight,
+    .select-wrapper.error-highlight select,
+    .select-wrapper.error-highlight :global(input),
+    .select-wrapper.error-highlight :global(div) {
         border-color: #ef4444 !important;
         background-color: #fef2f2 !important;
-        box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
         transition: all 0.3s ease;
     }
+    .error-highlight,
+    .select-wrapper.error-highlight {
+        box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2) !important;
+        border-radius: 6px;
+    }
+
     .select-wrapper { border-radius: 6px; transition: all 0.3s; }
 
-    /* AI Prompt Box Styling */
+    /* AI Prompt Box Styling Light Mode */
     .ai-prompt-box {
         background: #eff6ff; border: 2px solid #3b82f6; padding: 1.5rem; border-radius: 12px;
-        margin-bottom: 2rem; text-align: center; box-shadow: 0 4px 15px rgba(59,130,246,0.15);
+        margin-bottom: 2rem; text-align: center; box-shadow: 0 4px 15px rgba(59, 130, 246, 0.1);
         animation: slideDown 0.3s ease-out;
     }
-    .ai-prompt-box h3 { color: #1e3a8a; margin-top: 0; margin-bottom: 1.5rem; font-size: 1.15rem; }
+    .ai-prompt-box h3 { color: #1e40af; margin-top: 0; margin-bottom: 1.5rem; font-size: 1.15rem; }
     .ai-prompt-actions { display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; }
     
     .btn-ai-yes { background: #22c55e; color: white; border: none; padding: 0.8rem 2rem; border-radius: 8px; font-weight: bold; font-size: 1rem; cursor: pointer; transition: background 0.2s; }
@@ -579,11 +639,11 @@
     /* Overlays (Laden & Warnung) */
     .modal-fullscreen-backdrop {
         position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-        background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(3px); z-index: 10000;
+        background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(2px); z-index: 10000;
     }
     .overlay-modal {
         position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-        background: white; border-radius: 12px; width: 90%; max-width: 400px; padding: 2.5rem 2rem;
+        background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; width: 90%; max-width: 400px; padding: 2.5rem 2rem;
         text-align: center; z-index: 10001; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
         animation: popIn 0.2s ease-out forwards;
     }
@@ -603,22 +663,53 @@
     }
     .btn-confirm-warning:hover { background: #2563eb; }
 
-    /* Standard Formular-Styling */
+    /* Standard Formular-Styling Light Mode */
     .label-text { font-size: 0.85rem; font-weight: 600; color: #64748b; }
-    input, textarea { padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 1rem; width: 100%; box-sizing: border-box; }
+    input, textarea { 
+        padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px; 
+        font-size: 1rem; width: 100%; box-sizing: border-box; 
+        background: #ffffff; color: #334155; transition: all 0.2s;
+    }
+    input:focus, textarea:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
     
-    .image-area { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #f1f5f9; }
-    .image-workspace { max-height: 400px; background: #0f172a; border-radius: 8px; overflow: hidden; margin-bottom: 1rem; }
-    .image-workspace img { display: block; max-width: 100%; }
+    .image-area { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e2e8f0; }
+    
+    /* Cropper.js Fix eingebaut! */
+    .crop-editor-box { width: 100%; display: flex; flex-direction: column; gap: 1rem; overflow: hidden; }
+    .image-workspace { width: 100%; max-width: 100%; max-height: 400px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; overflow: hidden; margin-bottom: 1rem; display: flex; justify-content: center; align-items: center; }
+    .image-workspace img { display: block; max-width: 100%; height: auto; }
+    
     .cropper-actions { display: flex; gap: 0.5rem; justify-content: flex-end; }
-    .btn-apply { background: #16a34a; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; }
-    .btn-cancel { background: #94a3b8; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; }
-    .final-preview { max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #e2e8f0; }
-    .btn-remove { display: block; margin-top: 0.5rem; background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; padding: 0.4rem 0.8rem; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
+    .btn-apply { background: #22c55e; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 6px; cursor: pointer; font-weight: 600; transition: background 0.2s;}
+    .btn-apply:hover { background: #16a34a; }
     
-    .btn-submit { background: #1e293b; color: white; padding: 1rem; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; width: 100%; font-size: 1rem; }
-    .btn-submit:hover:not(:disabled) { background: #0f172a; }
-    .btn-submit:disabled { background: #94a3b8; cursor: not-allowed; }
+    .btn-cancel { background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 0.6rem 1.2rem; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s;}
+    .btn-cancel:hover { background: #e2e8f0; }
+    
+    .final-preview { max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #e2e8f0; }
+    
+    .btn-remove { display: block; margin-top: 0.5rem; background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; padding: 0.4rem 0.8rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: all 0.2s;}
+    .btn-remove:hover { background: #fecaca; }
+    
+    .btn-submit { 
+        background: #3b82f6; /* Schönes Primary-Blau */
+        color: white; 
+        padding: 1rem; 
+        border: none; 
+        border-radius: 8px; 
+        font-weight: 700; 
+        cursor: pointer; 
+        width: 100%; 
+        font-size: 1rem; 
+        transition: background 0.2s;
+    }
+    .btn-submit:hover:not(:disabled) { 
+        background: #2563eb; /* Etwas dunkleres Blau beim Hover */
+    }
+    .btn-submit:disabled { 
+        background: #94a3b8; 
+        cursor: not-allowed; 
+    }
     
     .alert { padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; text-align: center; font-weight: 600; }
     .success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }

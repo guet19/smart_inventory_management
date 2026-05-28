@@ -1,4 +1,3 @@
-// src/routes/[id]/+page.server.js
 import db from '$lib/server/db.js';
 import { error } from '@sveltejs/kit';
 
@@ -27,3 +26,32 @@ export async function load({ params }) {
         attributes: JSON.parse(JSON.stringify(attributes))
     };
 }
+
+// --- NEU: Action für das Speichern des Bestandes ---
+export const actions = {
+    updateStock: async ({ request }) => {
+        // Daten aus dem Frontend-Formular abfangen
+        const data = await request.formData();
+        const articleId = data.get('articleId');
+        const newStock = parseInt(data.get('newStock'), 10);
+
+        // Sicherheitsprüfung
+        if (isNaN(newStock) || newStock < 0) {
+            return { success: false, error: 'Ungültiger Bestand' };
+        }
+
+        try {
+            // Hier greifen wir auf deine Datenbank zu, um den Wert zu überschreiben.
+            // HINWEIS: Stelle sicher, dass du in deiner '$lib/server/db.js' 
+            // eine entsprechende Update-Funktion hast. 
+            // Falls sie anders heißt (z.B. updateArticleStock), passe den Namen hier an:
+            
+            await db.updateArticle(articleId, { istBestand: newStock });
+
+            return { success: true };
+        } catch (err) {
+            console.error("Fehler beim Aktualisieren des Bestandes:", err);
+            return { success: false, error: "Bestand konnte nicht gespeichert werden." };
+        }
+    }
+};

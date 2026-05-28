@@ -19,6 +19,7 @@
 		<div class="navbar-nav">
 			<a class="nav-link " class:active={$page.url.pathname === '/'} href="/">Inventar</a>
 			<a class="nav-link " class:active={$page.url.pathname === '/einstellungen/category'} href="/einstellungen/category">Kategorien/Filter verwalten </a>
+			<a class="nav-link " class:active={$page.url.pathname === '/tools'} href="/tools">Tools </a>
 		</div>
 	  </div>
 	</div>

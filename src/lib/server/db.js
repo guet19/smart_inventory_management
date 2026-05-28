@@ -264,6 +264,21 @@ async function getArticleById(id) {
     }
 }
 
+// NEU: Funktion zum Aktualisieren eines Artikels (z.B. Bestand)
+async function updateArticle(id, updateData) {
+    try {
+        const collection = db.collection("articles");
+        const result = await collection.updateOne(
+            { _id: new ObjectId(id) },
+            { $set: updateData }
+        );
+        return result;
+    } catch (error) {
+        console.error("Fehler beim Aktualisieren des Artikels:", error);
+        throw error;
+    }
+}
+
 export default { 
     getCategories, 
     createMainCategory,
@@ -271,7 +286,7 @@ export default {
     deleteSubcategory,
     deleteMainCategory, 
     renameMainCategory,
-    renameSubcategory, // <--- NEU
+    renameSubcategory,
     updateSubcategoryAttributes,
     getFilterAttributes, 
     createFilterAttribute,
@@ -282,5 +297,6 @@ export default {
     removeOptionFromFilterAttribute,
     createArticle,
     getArticles,
-    getArticleById
+    getArticleById,
+    updateArticle // <--- NEU
 };
