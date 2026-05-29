@@ -42,8 +42,9 @@ export async function sendVerificationEmail(toEmail, code, token) {
     await transporter.sendMail(mailOptions);
 }
 
-export async function sendPasswordResetEmail(toEmail, token, baseUrl) {
-    const resetLink = `${baseUrl}/reset-password/${token}`;
+export async function sendPasswordResetEmail(toEmail, token) {
+    // Nutzt jetzt genau wie die Registrierung direkt die Umgebungsvariable!
+    const resetLink = `${BASE_URL}/reset-password/${token}`;
 
     const mailOptions = {
         from: `"Sortify Inventar" <${SMTP_EMAIL}>`,

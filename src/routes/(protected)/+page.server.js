@@ -13,13 +13,14 @@ export async function load({ cookies }) {
     }
 
     // 3. Wenn der Cookie existiert, ganz normal die Daten für die Seite laden
-    const categories = await db.getCategories();
-    const articles = await db.getArticles();
-    const attributes = await db.getFilterAttributes(); // <-- NEU
+    // WICHTIG: Hier übergeben wir jetzt die 'session' (deine User-ID) an die DB!
+    const categories = await db.getCategories(session);
+    const articles = await db.getArticles(session);
+    const attributes = await db.getFilterAttributes(session); 
     
     return {
         categories,
         articles,
-        attributes // <-- NEU
+        attributes 
     };
 }
