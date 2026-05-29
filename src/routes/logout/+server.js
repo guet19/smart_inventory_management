@@ -1,10 +1,22 @@
-// src/routes/logout/+server.js
 import { redirect } from '@sveltejs/kit';
+import dbClient from '$lib/server/db.js';
 
-export const POST = ({ cookies }) => {
-    // Den Session-Cookie löschen
-    cookies.delete('session', { path: '/' });
-    
-    // Zurück zum Login schicken, aber diesmal mit URL-Parameter
-    throw redirect(303, '/login?loggedOut=true');
+export const actions = {
+    default: async ({ cookies }) => {
+        const sessionId = cookies.get('session');
+        const db = await dbClient.getDb();
+
+        if (sessionId) {
+            // Log-Eintrag abschließen: logoutTime setzen
+            await db.collection('sessionLogs').updateOne(
+                { sessionId: sessionId },
+                { $set: { logoutTime: new Date(), lastActive: new Date() } }
+            );
+        }
+
+        // Cookie löschen
+        cookies.delete('session', { path: '/' });
+
+        throw redirect(303, '/login?loggedOut=true');
+    }
 };

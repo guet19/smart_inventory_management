@@ -1,10 +1,7 @@
 // src/routes/login/+page.server.js
 import { redirect, fail } from '@sveltejs/kit';
 import bcrypt from 'bcryptjs';
-import db from '$lib/server/db.js';
-
-// Serverseitiger Speicher für Fehlversuche: IP-Adresse -> { count, lockUntil }
-const loginAttempts = new Map();
+import dbClient from '$lib/server/db.js'; // Dein DB-Client
 
 export async function load({ cookies }) {
     if (cookies.get('session')) {
@@ -14,16 +11,20 @@ export async function load({ cookies }) {
 
 export const actions = {
     login: async ({ request, cookies, getClientAddress }) => {
-        // 1. IP-Adresse des Nutzers auslesen
+        const db = await dbClient.getDb();
         const ip = getClientAddress();
-        const now = Date.now();
+        const now = new Date();
         
-        // Bisherige Versuche dieser IP laden (oder Startwerte setzen)
-        const attemptData = loginAttempts.get(ip) || { count: 0, lockUntil: 0 };
+        // 1. Bisherige Versuche aus der DB laden
+        let attemptData = await db.collection('loginAttempts').findOne({ ip: ip });
+        
+        if (!attemptData) {
+            attemptData = { ip: ip, count: 0, lockUntil: new Date(0) };
+        }
 
         // 2. Prüfen, ob die IP aktuell gesperrt ist
         if (attemptData.lockUntil > now) {
-            const remainingMinutes = Math.ceil((attemptData.lockUntil - now) / 60000);
+            const remainingMinutes = Math.ceil((attemptData.lockUntil.getTime() - now.getTime()) / 60000);
             return fail(429, { 
                 error: `Zu viele Fehlversuche. Deine IP ist für ${remainingMinutes} Minute(n) gesperrt.` 
             });
@@ -37,41 +38,74 @@ export const actions = {
             return fail(400, { error: 'Bitte fülle alle Felder aus.' });
         }
 
-        // Hilfsfunktion: Wird aufgerufen, wenn E-Mail oder Passwort falsch sind
-        const registerFailedAttempt = () => {
+        // Hilfsfunktion für Fehlversuche
+        const registerFailedAttempt = async () => {
             attemptData.count += 1;
+            let lockTime = attemptData.lockUntil;
             
             if (attemptData.count >= 5) {
-                attemptData.lockUntil = now + 5 * 60 * 1000; // 5 Minuten Sperre (in Millisekunden)
-                loginAttempts.set(ip, attemptData);
+                // Sperre für 5 Minuten setzen
+                lockTime = new Date(now.getTime() + 5 * 60 * 1000); 
+            }
+
+            // In MongoDB speichern/updaten (upsert: true legt es an, falls es nicht existiert)
+            await db.collection('loginAttempts').updateOne(
+                { ip: ip },
+                { 
+                    $set: { 
+                        count: attemptData.count, 
+                        lockUntil: lockTime,
+                        createdAt: new Date() // WICHTIG für den TTL-Index!
+                    } 
+                },
+                { upsert: true }
+            );
+
+            if (attemptData.count >= 5) {
                 return fail(429, { error: '5 Fehlversuche erreicht. IP für 5 Minuten gesperrt.' });
             }
             
-            loginAttempts.set(ip, attemptData);
             const attemptsLeft = 5 - attemptData.count;
             return fail(401, { error: `E-Mail oder Passwort falsch. Noch ${attemptsLeft} Versuch(e).` });
         };
 
-        // 3. Nutzer in der DB suchen
-        const user = await db.getUserByEmail(email);
-        if (!user) {
-            return registerFailedAttempt();
+        // 3. Nutzer suchen & Timing-Attack-Schutz
+        const user = await db.collection('users').findOne({ email: email });
+        let isPasswordValid = false;
+
+        if (user) {
+            isPasswordValid = await bcrypt.compare(password, user.password);
+        } else {
+            // Dummy-Hash prüfen, damit Angreifer nicht an der Antwortzeit erkennen, ob die Mail existiert
+            await bcrypt.compare(password, "$2a$10$dummyHashThatTakesRoughlyTheSameTimeHere1234567890123");
         }
 
-        // 4. Passwort prüfen
-        const isPasswordValid = await bcrypt.compare(password, user.password);
-        if (!isPasswordValid) return registerFailedAttempt();
+        if (!user || !isPasswordValid) return registerFailedAttempt();
 
-        // NEU: Prüfen, ob die E-Mail verifiziert wurde
         if (user.isVerified === false) {
-            return fail(403, { error: 'Bitte bestätige zuerst deine E-Mail-Adresse (prüfe auch den Spam-Ordner).' });
+            return fail(403, { error: 'Bitte bestätige zuerst deine E-Mail-Adresse.' });
         }
 
-        // 5. Login erfolgreich! Fehlversuche für diese IP löschen
-        loginAttempts.delete(ip);
+        // 4. LOGIN ERFOLGREICH!
+        
+        // Alte Fehlversuche dieser IP löschen
+        await db.collection('loginAttempts').deleteOne({ ip: ip });
 
-        // Session-Cookie setzen
-        const sessionId = user._id.toString(); 
+        // Session-ID generieren (entweder eigene UUID oder Nutzer-ID)
+        const sessionId = crypto.randomUUID(); 
+
+        // 5. NEU: Aktivitäts-Log (Session Start) eintragen
+        await db.collection('sessionLogs').insertOne({
+            sessionId: sessionId,
+            userId: user._id,
+            email: user.email,
+            loginTime: new Date(),
+            logoutTime: null, // Wird beim Logout gesetzt
+            lastActive: new Date(),
+            createdAt: new Date() // WICHTIG für den TTL-Index!
+        });
+
+        // Cookie setzen
         cookies.set('session', sessionId, {
             path: '/', 
             httpOnly: true, 

@@ -41,3 +41,29 @@ export async function sendVerificationEmail(toEmail, code, token) {
 
     await transporter.sendMail(mailOptions);
 }
+
+export async function sendPasswordResetEmail(toEmail, token, baseUrl) {
+    const resetLink = `${baseUrl}/reset-password/${token}`;
+
+    const mailOptions = {
+        from: `"Sortify Inventar" <${SMTP_EMAIL}>`,
+        to: toEmail,
+        subject: 'Dein Passwort zurücksetzen',
+        html: `
+            <div style="font-family: 'Segoe UI', Tahoma, Geneva, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
+                <h2 style="color: #3b82f6; margin-top: 0;">Passwort zurücksetzen</h2>
+                <p style="color: #334155; font-size: 16px; line-height: 1.5;">Du hast eine Anfrage zum Zurücksetzen deines Passworts für Sortify gestellt.</p>
+                
+                <p style="color: #334155; font-size: 15px; margin-top: 25px;">Klicke auf den untenstehenden Link, um ein neues Passwort zu vergeben:</p>
+                <a href="${resetLink}" style="display: inline-block; background-color: #3b82f6; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px; margin-top: 10px;">
+                    Neues Passwort setzen
+                </a>
+                
+                <hr style="border: none; border-top: 1px solid #e2e8f0; margin-top: 40px; margin-bottom: 20px;">
+                <p style="font-size: 12px; color: #64748b; margin: 0;">Dieser Link ist aus Sicherheitsgründen für 1 Stunde gültig. Wenn du diese Anfrage nicht gestellt hast, kannst du diese E-Mail einfach ignorieren.</p>
+            </div>
+        `
+    };
+
+    await transporter.sendMail(mailOptions);
+}

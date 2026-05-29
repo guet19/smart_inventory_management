@@ -401,7 +401,134 @@ async function updateUser(id, updateData) {
         throw error;
     }
 }
+// ==========================================
+// 5. SECURITY & LOGGING (Neu)
+// ==========================================
 
+async function getLoginAttempt(ip) {
+    try {
+        const collection = db.collection("loginAttempts");
+        return await collection.findOne({ ip: ip });
+    } catch (error) {
+        console.error("Fehler beim Laden der Login-Versuche:", error);
+        return null;
+    }
+}
+
+async function upsertLoginAttempt(ip, count, lockUntil) {
+    try {
+        const collection = db.collection("loginAttempts");
+        return await collection.updateOne(
+            { ip: ip },
+            { 
+                $set: { 
+                    count: count, 
+                    lockUntil: lockUntil,
+                    createdAt: new Date() // Trigger für den Compass TTL-Index!
+                } 
+            },
+            { upsert: true }
+        );
+    } catch (error) {
+        console.error("Fehler beim Speichern des Login-Versuchs:", error);
+    }
+}
+
+async function deleteLoginAttempt(ip) {
+    try {
+        const collection = db.collection("loginAttempts");
+        return await collection.deleteOne({ ip: ip });
+    } catch (error) {
+        console.error("Fehler beim Löschen des Login-Versuchs:", error);
+    }
+}
+
+async function createSessionLog(sessionId, userId, email) {
+    try {
+        const collection = db.collection("sessionLogs");
+        return await collection.insertOne({
+            sessionId: sessionId,
+            userId: new ObjectId(userId),
+            email: email,
+            loginTime: new Date(),
+            logoutTime: null, 
+            lastActive: new Date(),
+            createdAt: new Date() // Trigger für den Compass TTL-Index!
+        });
+    } catch (error) {
+        console.error("Fehler beim Erstellen des Session-Logs:", error);
+    }
+}
+
+async function endSessionLog(sessionId) {
+    try {
+        const collection = db.collection("sessionLogs");
+        return await collection.updateOne(
+            { sessionId: sessionId },
+            { $set: { logoutTime: new Date(), lastActive: new Date() } }
+        );
+    } catch (error) {
+        console.error("Fehler beim Beenden des Session-Logs:", error);
+    }
+}
+
+async function savePasswordResetToken(email) {
+    try {
+        const collection = db.collection("users");
+        // Wir erzeugen einen sicheren, zufälligen Token
+        const token = crypto.randomBytes(32).toString('hex');
+        const expires = new Date(Date.now() + 3600000); // Token ist exakt 1 Stunde gültig
+
+        const result = await collection.updateOne(
+            { email: email },
+            { $set: { resetToken: token, resetExpires: expires } }
+        );
+
+        // Wenn der Nutzer existierte, geben wir den Token zurück (für die E-Mail)
+        if (result.modifiedCount > 0) return token;
+        return null;
+    } catch (error) {
+        console.error("Fehler beim Speichern des Reset-Tokens:", error);
+        return null;
+    }
+}
+
+async function getUserByResetToken(token) {
+    try {
+        const collection = db.collection("users");
+        const user = await collection.findOne({ resetToken: token });
+        
+        // Prüfen ob Token existiert und noch nicht abgelaufen ist
+        if (!user || user.resetExpires < new Date()) return null;
+        return user;
+    } catch (error) {
+        console.error("Fehler beim Suchen des Tokens:", error);
+        return null;
+    }
+}
+
+async function resetUserPassword(userId, plainTextPassword) {
+    try {
+        const collection = db.collection("users");
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(plainTextPassword, salt);
+
+        await collection.updateOne(
+            { _id: new ObjectId(userId) },
+            { 
+                $set: { password: hashedPassword },
+                // Token und Ablaufdatum nach Erfolg komplett aus DB löschen
+                $unset: { resetToken: "", resetExpires: "" } 
+            }
+        );
+        return true;
+    } catch (error) {
+        console.error("Fehler beim Zurücksetzen des Passworts:", error);
+        return false;
+    }
+} // <--- DIESE KLAMMER HAT GEFEHLT!
+
+// Hier folgt jetzt ein sauberer Export-Block:
 export default { 
     getCategories, 
     createMainCategory,
@@ -427,5 +554,13 @@ export default {
     createInitialUser,
     getUserById,
     updateUser,
-    verifyUser
+    verifyUser,
+    getLoginAttempt,
+    upsertLoginAttempt,
+    deleteLoginAttempt,
+    createSessionLog,
+    endSessionLog,
+    savePasswordResetToken,
+    getUserByResetToken,
+    resetUserPassword
 };
