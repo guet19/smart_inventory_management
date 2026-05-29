@@ -1,27 +1,32 @@
+// src/routes/(protected)/editarticle/[id]/+page.server.js
 import db from '$lib/server/db.js';
 import { error, redirect } from '@sveltejs/kit';
 import { writeFileSync, unlinkSync, existsSync } from 'fs';
 import path from 'path';
 
-export async function load({ params }) {
-    // 1. Die ID aus der URL auslesen
+export async function load({ params, cookies }) {
+    // 1. Nutzer identifizieren
+    const userId = cookies.get('session');
+    if (!userId) {
+        throw error(401, 'Nicht autorisiert');
+    }
+
     const articleId = params.id;
 
-    // 2. Den spezifischen Artikel aus der Datenbank holen
-    const article = await db.getArticleById(articleId);
+    // 2. Artikel mit Sicherheitscheck (userId) aus der DB holen
+    const article = await db.getArticleById(userId, articleId);
 
-    // 3. Fehlerbehandlung: Wenn es die ID nicht gibt, eine 404-Seite werfen
+    // 3. Fehlerbehandlung: Wenn es die ID nicht gibt oder sie nicht dem User gehört
     if (!article) {
         throw error(404, {
-            message: 'Dieser Artikel wurde nicht gefunden.'
+            message: 'Dieser Artikel wurde nicht gefunden oder du hast keinen Zugriff darauf.'
         });
     }
 
-    // 4. Metadaten für die Dropdowns laden
-    const categories = await db.getCategories();
-    const attributes = await db.getFilterAttributes();
+    // 4. Metadaten für die Dropdowns laden (ebenfalls gefiltert!)
+    const categories = await db.getCategories(userId);
+    const attributes = await db.getFilterAttributes(userId);
 
-    // 5. Alles "entschärft" an das Frontend (+page.svelte) übergeben
     return {
         article: JSON.parse(JSON.stringify(article)),
         categories: JSON.parse(JSON.stringify(categories)),
@@ -30,14 +35,18 @@ export async function load({ params }) {
 }
 
 export const actions = {
-    update: async ({ request, params }) => {
+    update: async ({ request, params, cookies }) => {
+        // Sicherheitscheck
+        const userId = cookies.get('session');
+        if (!userId) return { error: "Nicht autorisiert" };
+
         const formData = await request.formData();
         const articleId = params.id;
         
-        // Alten Artikel holen (wir brauchen diesen für den alten Bildpfad)
-        const oldArticle = await db.getArticleById(articleId);
+        // Alten Artikel prüfen (Gehört er dem User?)
+        const oldArticle = await db.getArticleById(userId, articleId);
         if (!oldArticle) {
-            return { error: "Artikel nicht gefunden." };
+            return { error: "Artikel nicht gefunden oder Zugriff verweigert." };
         }
 
         // Standard-Daten aus dem Formular auslesen
@@ -70,7 +79,6 @@ export const actions = {
         for (const [key, value] of formData.entries()) {
             if (key.startsWith("attr_")) {
                 const attrId = key.replace("attr_", "");
-                // formData.getAll greift Array-Werte von Multi-Selects ab
                 const allValues = formData.getAll(key);
                 attributesMap[attrId] = allValues.length > 1 ? allValues : value.toString();
             }
@@ -81,38 +89,31 @@ export const actions = {
         const removeExistingImage = formData.get("removeExistingImage") === "true";
         const newImageFile = formData.get("image");
 
-        // 1. Altes Bild physisch löschen (wenn der Nutzer es entfernt ODER ein neues hochlädt)
         if ((removeExistingImage || (newImageFile && newImageFile.size > 0)) && oldArticle.imagePath) {
             try {
-                // Den absoluten Dateipfad zusammenbauen
                 const oldFilePath = path.join(process.cwd(), 'static', oldArticle.imagePath);
                 if (existsSync(oldFilePath)) {
-                    unlinkSync(oldFilePath); // Bild löschen
+                    unlinkSync(oldFilePath);
                 }
             } catch (e) {
                 console.error("Altes Bild konnte nicht physisch gelöscht werden:", e);
             }
-            // Temporär auf null setzen, falls kein neues Bild mehr kommt
             updateData.imagePath = null;
         }
 
-        // 2. Neues Bild speichern
         if (newImageFile && newImageFile.size > 0 && newImageFile.name !== 'undefined') {
-            // Einen eindeutigen Namen generieren (Timestamp + Random)
             const fileName = `${Date.now()}_${Math.round(Math.random() * 1000)}.jpg`;
             const filePath = path.join(process.cwd(), 'static', 'uploads', fileName);
             
-            // Datei auf dem Server ablegen
             const buffer = Buffer.from(await newImageFile.arrayBuffer());
             writeFileSync(filePath, buffer);
             
-            // Pfad für die Datenbank setzen
             updateData.imagePath = `/uploads/${fileName}`;
         }
 
-        // In die Datenbank schreiben
+        // Update in der DB (Sicherheitscheck passiert in db.js via userId)
         try {
-            await db.updateArticle(articleId, updateData);
+            await db.updateArticle(userId, articleId, updateData);
             return { success: true };
         } catch (err) {
             console.error("Datenbank Update-Fehler:", err);
@@ -120,12 +121,21 @@ export const actions = {
         }
     },
 
-    delete: async ({ params }) => {
-        const articleId = params.id;
-        const oldArticle = await db.getArticleById(articleId);
+    delete: async ({ params, cookies }) => {
+        // Sicherheitscheck
+        const userId = cookies.get('session');
+        if (!userId) return { error: "Nicht autorisiert" };
 
-        // Auch beim Löschen des Artikels räumen wir das Bild vom Server auf
-        if (oldArticle && oldArticle.imagePath) {
+        const articleId = params.id;
+        
+        // Zuerst prüfen, ob der Nutzer diesen Artikel überhaupt löschen darf
+        const oldArticle = await db.getArticleById(userId, articleId);
+        if (!oldArticle) {
+            return { error: "Artikel nicht gefunden oder Zugriff verweigert." };
+        }
+
+        // Bild vom Server aufräumen
+        if (oldArticle.imagePath) {
             try {
                 const oldFilePath = path.join(process.cwd(), 'static', oldArticle.imagePath);
                 if (existsSync(oldFilePath)) {
@@ -137,14 +147,14 @@ export const actions = {
         }
 
         try {
-            // HINWEIS: Du brauchst in deiner db.js eine "deleteArticle"-Funktion!
-            await db.deleteArticle(articleId); 
+            // ACHTUNG: Die db.deleteArticle Funktion fehlt bisher noch in deiner db.js!
+            // Du musst sie dort noch ergänzen (siehe Block unten)
+            await db.deleteArticle(userId, articleId); 
         } catch (err) {
             console.error("Fehler beim Löschen des Artikels:", err);
             return { error: "Fehler beim Löschen." };
         }
 
-        // Bei Erfolg werfen wir den Nutzer direkt zurück auf die Startseite
         throw redirect(303, "/");
     }
 };

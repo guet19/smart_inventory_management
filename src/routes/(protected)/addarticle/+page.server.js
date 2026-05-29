@@ -5,10 +5,18 @@ import { ObjectId } from 'mongodb';
 import { writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join } from 'path';
 
-export async function load() {
+export async function load({ cookies }) {
+    // 1. NEU: Die ID des eingeloggten Nutzers aus dem Cookie holen
+    const userId = cookies.get('session');
+    if (!userId) {
+        throw error(401, 'Nicht autorisiert');
+    }
+
     try {
-        const categories = await db.collection('categories').find().toArray();
-        const attributes = await db.collection('filter_attributes').find().toArray();
+        // 2. NEU: Bei der Datenbankabfrage { userId: userId } als Filter setzen!
+        // So landen im Dropdown für die Kategorien keine Einträge von fremden Nutzern.
+        const categories = await db.collection('categories').find({ userId: userId }).toArray();
+        const attributes = await db.collection('filter_attributes').find({ userId: userId }).toArray();
 
         return {
             categories: JSON.parse(JSON.stringify(categories)),
@@ -25,7 +33,13 @@ export async function load() {
 }
 
 export const actions = {
-    default: async ({ request }) => {
+    default: async ({ request, cookies }) => {
+        // 1. NEU: Auch beim Speichern zwingend den Nutzer identifizieren
+        const userId = cookies.get('session');
+        if (!userId) {
+            return fail(401, { error: 'Nicht autorisiert. Bitte neu anmelden.' });
+        }
+
         const data = await request.formData();
         
         const title = data.get('title');
@@ -67,13 +81,14 @@ export const actions = {
                 }
             }
 
+            // 2. NEU: Das Objekt um die userId erweitern
             const newArticle = {
+                userId: userId, // <-- Hier wird der Artikel fest mit dem Nutzer verknüpft!
                 title,
                 description: data.get('description'),
                 mainCategoryId: new ObjectId(mainCategoryId),
                 subcategoryId: data.get('subcategoryId') || null,
                 
-                // NEU: Die GTIN speichern
                 gtin: data.get('gtin') || "",
                 
                 istBestand,

@@ -1,5 +1,6 @@
 import { MongoClient, ObjectId } from "mongodb";
 import { DB_URI } from "$env/static/private";
+import bcrypt from "bcryptjs"; 
 
 const client = new MongoClient(DB_URI);
 await client.connect();
@@ -9,11 +10,12 @@ export const db = client.db("Storify");
 // 1. KATEGORIEN VERWALTUNG
 // ==========================================
 
-async function getCategories() {
+async function getCategories(userId) {
     let categories = [];
     try {
         const collection = db.collection("categories");
-        categories = await collection.find({}).toArray();
+        // NEU: Nur Kategorien dieses Users laden
+        categories = await collection.find({ userId: userId }).toArray();
         categories.forEach(cat => {
             cat._id = cat._id.toString();
         });
@@ -23,10 +25,11 @@ async function getCategories() {
     return categories;
 }
 
-async function createMainCategory(name) {
+async function createMainCategory(userId, name) {
     try {
         const collection = db.collection("categories");
         const result = await collection.insertOne({
+            userId: userId, // NEU: Verknüpfung zum Nutzer
             name: name,
             subcategories: [], 
             createdAt: new Date()
@@ -38,12 +41,13 @@ async function createMainCategory(name) {
     }
 }
 
-async function createSubcategory(mainCategoryId, subName) {
+async function createSubcategory(userId, mainCategoryId, subName) {
     try {
         const collection = db.collection("categories");
         const subId = "sub_" + Date.now(); 
         const result = await collection.updateOne(
-            { _id: new ObjectId(mainCategoryId) },
+            // NEU: userId in der Abfrage als Sicherheitscheck
+            { _id: new ObjectId(mainCategoryId), userId: userId },
             { $push: { subcategories: { id: subId, name: subName, allowed_attributes: [] } } }
         );
         return result;
@@ -53,11 +57,11 @@ async function createSubcategory(mainCategoryId, subName) {
     }
 }
 
-async function deleteSubcategory(mainCategoryId, subCategoryId) {
+async function deleteSubcategory(userId, mainCategoryId, subCategoryId) {
     try {
         const collection = db.collection("categories");
         const result = await collection.updateOne(
-            { _id: new ObjectId(mainCategoryId) },
+            { _id: new ObjectId(mainCategoryId), userId: userId },
             { $pull: { subcategories: { id: subCategoryId } } }
         );
         return result;
@@ -67,10 +71,10 @@ async function deleteSubcategory(mainCategoryId, subCategoryId) {
     }
 }
 
-async function deleteMainCategory(id) {
+async function deleteMainCategory(userId, id) {
     try {
         const collection = db.collection("categories");
-        const result = await collection.deleteOne({ _id: new ObjectId(id) });
+        const result = await collection.deleteOne({ _id: new ObjectId(id), userId: userId });
         return result;
     } catch (error) {
         console.error("Fehler beim Löschen der Hauptkategorie:", error);
@@ -78,11 +82,11 @@ async function deleteMainCategory(id) {
     }
 }
 
-async function renameMainCategory(id, newName) {
+async function renameMainCategory(userId, id, newName) {
     try {
         const collection = db.collection("categories");
         const result = await collection.updateOne(
-            { _id: new ObjectId(id) },
+            { _id: new ObjectId(id), userId: userId },
             { $set: { name: newName } }
         );
         return result;
@@ -92,12 +96,11 @@ async function renameMainCategory(id, newName) {
     }
 }
 
-// NEU: Funktion zum Umbenennen der Unterkategorie
-async function renameSubcategory(mainCategoryId, subCategoryId, newName) {
+async function renameSubcategory(userId, mainCategoryId, subCategoryId, newName) {
     try {
         const collection = db.collection("categories");
         const result = await collection.updateOne(
-            { _id: new ObjectId(mainCategoryId), "subcategories.id": subCategoryId },
+            { _id: new ObjectId(mainCategoryId), userId: userId, "subcategories.id": subCategoryId },
             { $set: { "subcategories.$.name": newName } }
         );
         return result;
@@ -107,11 +110,11 @@ async function renameSubcategory(mainCategoryId, subCategoryId, newName) {
     }
 }
 
-async function updateSubcategoryAttributes(mainCategoryId, subCategoryId, attributeIds) {
+async function updateSubcategoryAttributes(userId, mainCategoryId, subCategoryId, attributeIds) {
     try {
         const collection = db.collection("categories");
         const result = await collection.updateOne(
-            { _id: new ObjectId(mainCategoryId), "subcategories.id": subCategoryId },
+            { _id: new ObjectId(mainCategoryId), userId: userId, "subcategories.id": subCategoryId },
             { $set: { "subcategories.$.allowed_attributes": attributeIds } }
         );
         return result;
@@ -125,11 +128,11 @@ async function updateSubcategoryAttributes(mainCategoryId, subCategoryId, attrib
 // 2. FILTER-ATTRIBUTE VERWALTUNG
 // ==========================================
 
-async function getFilterAttributes() {
+async function getFilterAttributes(userId) {
     let attributes = [];
     try {
         const collection = db.collection("filter_attributes");
-        attributes = await collection.find({}).toArray();
+        attributes = await collection.find({ userId: userId }).toArray();
         attributes.forEach(attr => {
             attr._id = attr._id.toString();
         });
@@ -139,10 +142,12 @@ async function getFilterAttributes() {
     return attributes;
 }
 
-async function createFilterAttribute(attributeData) {
+async function createFilterAttribute(userId, attributeData) {
     try {
         const collection = db.collection("filter_attributes");
-        const result = await collection.insertOne(attributeData);
+        // Sicherstellen, dass die userId ins Dokument geschrieben wird
+        const dataToInsert = { ...attributeData, userId: userId };
+        const result = await collection.insertOne(dataToInsert);
         return result;
     } catch (error) {
         console.error("Fehler beim Speichern des Attributs:", error);
@@ -150,10 +155,10 @@ async function createFilterAttribute(attributeData) {
     }
 }
 
-async function deleteFilterAttribute(id) {
+async function deleteFilterAttribute(userId, id) {
     try {
         const collection = db.collection("filter_attributes");
-        const result = await collection.deleteOne({ _id: new ObjectId(id) });
+        const result = await collection.deleteOne({ _id: new ObjectId(id), userId: userId });
         return result;
     } catch (error) {
         console.error("Fehler beim Löschen des Attributs:", error);
@@ -161,11 +166,11 @@ async function deleteFilterAttribute(id) {
     }
 }
 
-async function updateFilterAttribute(id, attributeData) {
+async function updateFilterAttribute(userId, id, attributeData) {
     try {
         const collection = db.collection("filter_attributes");
         const result = await collection.updateOne(
-            { _id: new ObjectId(id) },
+            { _id: new ObjectId(id), userId: userId },
             { $set: attributeData } 
         );
         return result;
@@ -175,10 +180,11 @@ async function updateFilterAttribute(id, attributeData) {
     }
 }
 
-async function getFilterAttributeByLabel(label) {
+async function getFilterAttributeByLabel(userId, label) {
     try {
         const collection = db.collection("filter_attributes");
         const attribute = await collection.findOne({ 
+            userId: userId,
             label: { $regex: new RegExp(`^${label}$`, 'i') } 
         });
         return attribute;
@@ -188,11 +194,11 @@ async function getFilterAttributeByLabel(label) {
     }
 }
 
-async function addOptionToFilterAttribute(id, newOption) {
+async function addOptionToFilterAttribute(userId, id, newOption) {
     try {
         const collection = db.collection("filter_attributes");
         const result = await collection.updateOne(
-            { _id: new ObjectId(id) },
+            { _id: new ObjectId(id), userId: userId },
             { $addToSet: { options: newOption } } 
         );
         return result;
@@ -202,11 +208,11 @@ async function addOptionToFilterAttribute(id, newOption) {
     }
 }
 
-async function removeOptionFromFilterAttribute(id, optionToRemove) {
+async function removeOptionFromFilterAttribute(userId, id, optionToRemove) {
     try {
         const collection = db.collection("filter_attributes");
         const result = await collection.updateOne(
-            { _id: new ObjectId(id) },
+            { _id: new ObjectId(id), userId: userId },
             { $pull: { options: optionToRemove } }
         );
         return result;
@@ -220,10 +226,11 @@ async function removeOptionFromFilterAttribute(id, optionToRemove) {
 // 3. ARTIKEL VERWALTUNG
 // ==========================================
 
-async function createArticle(articleData) {
+async function createArticle(userId, articleData) {
     try {
         const collection = db.collection("articles");
-        const result = await collection.insertOne(articleData);
+        const dataToInsert = { ...articleData, userId: userId };
+        const result = await collection.insertOne(dataToInsert);
         return result;
     } catch (error) {
         console.error("Fehler beim Speichern des Artikels:", error);
@@ -231,11 +238,11 @@ async function createArticle(articleData) {
     }
 }
 
-async function getArticles() {
+async function getArticles(userId) {
     let articles = [];
     try {
         const collection = db.collection("articles");
-        articles = await collection.find({}).sort({ createdAt: -1 }).toArray();
+        articles = await collection.find({ userId: userId }).sort({ createdAt: -1 }).toArray();
         
         articles.forEach(article => {
             if (article._id) article._id = article._id.toString();
@@ -249,10 +256,10 @@ async function getArticles() {
     return articles;
 }
 
-async function getArticleById(id) {
+async function getArticleById(userId, id) {
     try {
         const collection = db.collection("articles");
-        const article = await collection.findOne({ _id: new ObjectId(id) });
+        const article = await collection.findOne({ _id: new ObjectId(id), userId: userId });
         
         if (article) {
             article._id = article._id.toString(); 
@@ -264,17 +271,133 @@ async function getArticleById(id) {
     }
 }
 
-// NEU: Funktion zum Aktualisieren eines Artikels (z.B. Bestand)
-async function updateArticle(id, updateData) {
+async function updateArticle(userId, id, updateData) {
     try {
         const collection = db.collection("articles");
+        const result = await collection.updateOne(
+            { _id: new ObjectId(id), userId: userId },
+            { $set: updateData }
+        );
+        return result;
+    } catch (error) {
+        console.error("Fehler beim Aktualisieren des Artikels:", error);
+        throw error;
+    }
+}
+
+async function deleteArticle(userId, id) {
+    try {
+        const collection = db.collection("articles");
+        // Der Sicherheitscheck: Lösche nur, wenn die ID UND die userId übereinstimmen!
+        const result = await collection.deleteOne({ 
+            _id: new ObjectId(id), 
+            userId: userId 
+        });
+        return result;
+    } catch (error) {
+        console.error("Fehler beim Löschen des Artikels:", error);
+        throw error;
+    }
+}
+
+// ==========================================
+// 4. BENUTZER VERWALTUNG (BCRYPT)
+// ==========================================
+
+async function getUserByEmail(email) {
+    try {
+        const collection = db.collection("users");
+        return await collection.findOne({ email: email });
+    } catch (error) {
+        console.error("Fehler beim Suchen des Benutzers:", error);
+        return null;
+    }
+}
+
+async function createInitialUser(email, plainTextPassword, userData = {}, verificationData = {}) {
+    try {
+        const collection = db.collection("users");
+        const existingUser = await collection.findOne({ email: email });
+        if (existingUser) return { success: false, message: "Benutzer existiert bereits" };
+
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(plainTextPassword, salt);
+
+        const result = await collection.insertOne({
+            email: email,
+            password: hashedPassword,
+            firstName: userData.firstName || "",
+            lastName: userData.lastName || "",
+            country: userData.country || "",
+            birthDate: userData.birthDate ? new Date(userData.birthDate) : null,
+            createdAt: new Date(),
+            
+            // NEU: Verifizierungs-Daten
+            isVerified: false,
+            verificationCode: verificationData.code,
+            verificationToken: verificationData.token,
+            verificationExpires: verificationData.expires
+        });
+
+        return { success: true, userId: result.insertedId.toString() };
+    } catch (error) {
+        throw error;
+    }
+}
+
+// NEUE Funktion: Nutzer verifizieren (überprüft Code ODER Token)
+async function verifyUser(emailOrToken, isToken = false) {
+    try {
+        const collection = db.collection("users");
+        const query = isToken ? { verificationToken: emailOrToken } : { email: emailOrToken };
+        
+        const user = await collection.findOne(query);
+        
+        if (!user) return { success: false, message: "Nutzer nicht gefunden." };
+        if (user.isVerified) return { success: false, message: "Account ist bereits verifiziert." };
+        if (user.verificationExpires < new Date()) return { success: false, message: "Der Code ist abgelaufen. Bitte registriere dich neu." };
+
+        // Bei Erfolg: isVerified auf true setzen und Codes aus Sicherheitsgründen löschen
+        await collection.updateOne(
+            { _id: user._id },
+            { 
+                $set: { isVerified: true },
+                $unset: { verificationCode: "", verificationToken: "", verificationExpires: "" }
+            }
+        );
+
+        return { success: true };
+    } catch (error) {
+        console.error(error);
+        return { success: false, message: "Datenbankfehler bei der Verifizierung." };
+    }
+}
+
+async function getUserById(id) {
+    try {
+        // NEU: Prüfen, ob die ID überhaupt das richtige MongoDB-Format hat
+        if (!ObjectId.isValid(id)) {
+            return null; // Wenn nicht (z.B. die alte UUID), direkt abbrechen
+        }
+        
+        const collection = db.collection("users");
+        return await collection.findOne({ _id: new ObjectId(id) });
+    } catch (error) {
+        console.error("Fehler beim Suchen des Benutzers nach ID:", error);
+        return null;
+    }
+}
+
+async function updateUser(id, updateData) {
+    try {
+        const collection = db.collection("users");
         const result = await collection.updateOne(
             { _id: new ObjectId(id) },
             { $set: updateData }
         );
         return result;
     } catch (error) {
-        console.error("Fehler beim Aktualisieren des Artikels:", error);
+        console.error("Fehler beim Aktualisieren des Benutzers:", error);
         throw error;
     }
 }
@@ -298,5 +421,11 @@ export default {
     createArticle,
     getArticles,
     getArticleById,
-    updateArticle // <--- NEU
+    updateArticle,
+    deleteArticle,
+    getUserByEmail,
+    createInitialUser,
+    getUserById,
+    updateUser,
+    verifyUser
 };

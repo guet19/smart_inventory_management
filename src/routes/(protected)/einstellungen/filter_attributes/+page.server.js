@@ -1,15 +1,24 @@
-import { fail } from '@sveltejs/kit';
+import { fail, error } from '@sveltejs/kit';
 import db from '$lib/server/db.js'; 
 
-export async function load() {
-    // Lädt alle Attribute für die Übersicht
-    const attributeLibrary = await db.getFilterAttributes();
+export async function load({ cookies }) {
+    // 1. Nutzer identifizieren
+    const userId = cookies.get('session');
+    if (!userId) {
+        throw error(401, 'Nicht autorisiert');
+    }
+
+    // 2. Nur die Attribute dieses Nutzers laden
+    const attributeLibrary = await db.getFilterAttributes(userId);
     return { attributeLibrary };
 }
 
 export const actions = {
     // 1. Neues Attribut erstellen
-    create: async ({ request }) => {
+    create: async ({ request, cookies }) => {
+        const userId = cookies.get('session');
+        if (!userId) return fail(401, { errorCreate: "Nicht autorisiert." });
+
         const data = await request.formData();
         const label = data.get('label');
         const ui_type = data.get('ui_type');
@@ -26,7 +35,7 @@ export const actions = {
         }
 
         try {
-            await db.createFilterAttribute({
+            await db.createFilterAttribute(userId, {
                 label,
                 ui_type,
                 unit: unit || null,
@@ -34,14 +43,17 @@ export const actions = {
                 options: ui_type === 'select' ? options : []
             });
             return { success: true };
-        } catch (error) {
-            console.error("Fehler beim Erstellen:", error);
+        } catch (err) {
+            console.error("Fehler beim Erstellen:", err);
             return fail(500, { errorCreate: "Datenbankfehler beim Erstellen." });
         }
     },
 
     // 2. Bestehendes Attribut komplett aktualisieren
-    update: async ({ request }) => {
+    update: async ({ request, cookies }) => {
+        const userId = cookies.get('session');
+        if (!userId) return fail(401, { errorUpdate: "Nicht autorisiert." });
+
         const data = await request.formData();
         const id = data.get('id'); 
         const label = data.get('label');
@@ -59,7 +71,7 @@ export const actions = {
         }
 
         try {
-            await db.updateFilterAttribute(id, {
+            await db.updateFilterAttribute(userId, id, {
                 label,
                 ui_type,
                 unit: unit || null,
@@ -67,14 +79,17 @@ export const actions = {
                 options: ui_type === 'select' ? options : []
             });
             return { successUpdate: true };
-        } catch (error) {
-            console.error("Fehler beim Aktualisieren:", error);
+        } catch (err) {
+            console.error("Fehler beim Aktualisieren:", err);
             return fail(500, { errorUpdate: "Datenbankfehler beim Aktualisieren." });
         }
     },
 
     // 3. Einen einzelnen Wert (Option) schnell hinzufügen
-    addOptionQuick: async ({ request }) => {
+    addOptionQuick: async ({ request, cookies }) => {
+        const userId = cookies.get('session');
+        if (!userId) return fail(401, { errorQuick: "Nicht autorisiert." });
+
         const data = await request.formData();
         const id = data.get('id');
         const newOption = data.get('newOption');
@@ -84,16 +99,19 @@ export const actions = {
         }
 
         try {
-            await db.addOptionToFilterAttribute(id, newOption.trim());
+            await db.addOptionToFilterAttribute(userId, id, newOption.trim());
             return { successQuickAdd: true };
-        } catch (error) {
-            console.error("Fehler beim Hinzufügen der Option:", error);
+        } catch (err) {
+            console.error("Fehler beim Hinzufügen der Option:", err);
             return fail(500, { errorQuick: "Datenbankfehler." });
         }
     },
 
     // 4. Einen einzelnen Wert (Option) schnell löschen
-    removeOptionQuick: async ({ request }) => {
+    removeOptionQuick: async ({ request, cookies }) => {
+        const userId = cookies.get('session');
+        if (!userId) return fail(401, { errorQuick: "Nicht autorisiert." });
+
         const data = await request.formData();
         const id = data.get('id');
         const option = data.get('option');
@@ -103,16 +121,19 @@ export const actions = {
         }
 
         try {
-            await db.removeOptionFromFilterAttribute(id, option);
+            await db.removeOptionFromFilterAttribute(userId, id, option);
             return { successQuickRemove: true };
-        } catch (error) {
-            console.error("Fehler beim Löschen der Option:", error);
+        } catch (err) {
+            console.error("Fehler beim Löschen der Option:", err);
             return fail(500, { errorQuick: "Datenbankfehler." });
         }
     },
 
     // 5. Ein komplettes Attribut löschen
-    delete: async ({ request }) => {
+    delete: async ({ request, cookies }) => {
+        const userId = cookies.get('session');
+        if (!userId) return fail(401, { errorDelete: "Nicht autorisiert." });
+
         const data = await request.formData();
         const id = data.get('id');
 
@@ -121,10 +142,10 @@ export const actions = {
         }
 
         try {
-            await db.deleteFilterAttribute(id);
+            await db.deleteFilterAttribute(userId, id);
             return { success: true };
-        } catch (error) {
-            console.error("Fehler beim Löschen des Attributs:", error);
+        } catch (err) {
+            console.error("Fehler beim Löschen des Attributs:", err);
             return fail(500, { errorDelete: "Datenbankfehler beim Löschen." });
         }
     }
