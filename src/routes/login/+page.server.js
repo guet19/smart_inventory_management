@@ -1,7 +1,7 @@
 // src/routes/login/+page.server.js
 import { redirect, fail } from '@sveltejs/kit';
 import bcrypt from 'bcryptjs';
-import dbClient from '$lib/server/db.js'; // Dein DB-Client
+import db from '$lib/server/db.js'; // WICHTIG: Direkt db importieren
 
 export async function load({ cookies }) {
     if (cookies.get('session')) {
@@ -11,12 +11,11 @@ export async function load({ cookies }) {
 
 export const actions = {
     login: async ({ request, cookies, getClientAddress }) => {
-        const db = await dbClient.getDb();
         const ip = getClientAddress();
         const now = new Date();
         
-        // 1. Bisherige Versuche aus der DB laden
-        let attemptData = await db.collection('loginAttempts').findOne({ ip: ip });
+        // 1. Bisherige Versuche über deine Hilfsfunktion laden
+        let attemptData = await db.getLoginAttempt(ip);
         
         if (!attemptData) {
             attemptData = { ip: ip, count: 0, lockUntil: new Date(0) };
@@ -48,18 +47,8 @@ export const actions = {
                 lockTime = new Date(now.getTime() + 5 * 60 * 1000); 
             }
 
-            // In MongoDB speichern/updaten (upsert: true legt es an, falls es nicht existiert)
-            await db.collection('loginAttempts').updateOne(
-                { ip: ip },
-                { 
-                    $set: { 
-                        count: attemptData.count, 
-                        lockUntil: lockTime,
-                        createdAt: new Date() // WICHTIG für den TTL-Index!
-                    } 
-                },
-                { upsert: true }
-            );
+            // Speichern über deine Hilfsfunktion
+            await db.upsertLoginAttempt(ip, attemptData.count, lockTime);
 
             if (attemptData.count >= 5) {
                 return fail(429, { error: '5 Fehlversuche erreicht. IP für 5 Minuten gesperrt.' });
@@ -70,41 +59,32 @@ export const actions = {
         };
 
         // 3. Nutzer suchen & Timing-Attack-Schutz
-        const user = await db.collection('users').findOne({ email: email });
+        const user = await db.getUserByEmail(email);
         let isPasswordValid = false;
 
         if (user) {
             isPasswordValid = await bcrypt.compare(password, user.password);
         } else {
-            // Dummy-Hash prüfen, damit Angreifer nicht an der Antwortzeit erkennen, ob die Mail existiert
+            // Dummy-Hash prüfen
             await bcrypt.compare(password, "$2a$10$dummyHashThatTakesRoughlyTheSameTimeHere1234567890123");
         }
 
         if (!user || !isPasswordValid) return registerFailedAttempt();
 
         if (user.isVerified === false) {
-            return fail(403, { error: 'Bitte bestätige zuerst deine E-Mail-Adresse.' });
+            return fail(403, { error: 'Bitte bestätige zuerst deine E-Mail-Adresse (prüfe auch den Spam-Ordner).' });
         }
 
         // 4. LOGIN ERFOLGREICH!
         
-        // Alte Fehlversuche dieser IP löschen
-        await db.collection('loginAttempts').deleteOne({ ip: ip });
+        // Alte Fehlversuche über Hilfsfunktion löschen
+        await db.deleteLoginAttempt(ip);
 
-        // FEHLERBEHEBUNG: Wir nutzen zwingend die MongoDB User-ID als Session-ID,
-        // da dein +layout.server.js genau diese ID für die Validierung benötigt!
+        // Die echte MongoDB User-ID als Session-ID nutzen
         const sessionId = user._id.toString(); 
 
-        // 5. Aktivitäts-Log (Session Start) eintragen
-        await db.collection('sessionLogs').insertOne({
-            sessionId: sessionId,
-            userId: user._id,
-            email: user.email,
-            loginTime: new Date(),
-            logoutTime: null, // Wird beim Logout gesetzt
-            lastActive: new Date(),
-            createdAt: new Date() // WICHTIG für den TTL-Index!
-        });
+        // 5. Session Log über Hilfsfunktion anlegen
+        await db.createSessionLog(sessionId, user._id, user.email);
 
         // Cookie setzen
         cookies.set('session', sessionId, {
@@ -115,9 +95,7 @@ export const actions = {
             maxAge: 60 * 60 * 24 * 7 // 7 Tage gültig
         });
 
-        // WICHTIG: Wir leiten hier auf das Root-Verzeichnis '/' um. 
-        // Falls deine Startseite nach dem Login einen anderen Pfad hat (z.B. '/dashboard'),
-        // musst du das '/' hier entsprechend anpassen!
+        // Ab aufs Dashboard!
         throw redirect(303, '/'); 
     }
 };
