@@ -5,11 +5,13 @@
 
     export let form;
 
-    // Status-Variablen für die verschiedenen Meldungen
+    // Status-Variablen für ALLE möglichen Meldungen
     let showLogoutMessage = false;
     let showRegisterMessage = false;
     let showResetSuccess = false;
     let showResetError = false;
+    let showVerifiedMessage = false;
+    let showVerifyError = '';
 
     // 1. Logout abfangen
     $: if ($page.url.searchParams.get('loggedOut') === 'true') {
@@ -32,11 +34,25 @@
         setTimeout(() => showResetSuccess = false, 5000);
     }
 
-    // 4. Fehlerhafter Passwort-Reset (Token abgelaufen) abfangen
+    // 4. Fehlerhafter Passwort-Reset abfangen
     $: if ($page.url.searchParams.get('resetError') === 'true') {
         showResetError = true;
         cleanUrlParameter('resetError');
         setTimeout(() => showResetError = false, 6000);
+    }
+
+    // 5. NEU: Erfolgreiche E-Mail-Verifizierung abfangen
+    $: if ($page.url.searchParams.get('verified') === 'true') {
+        showVerifiedMessage = true;
+        cleanUrlParameter('verified');
+        setTimeout(() => showVerifiedMessage = false, 5000);
+    }
+
+    // 6. NEU: Fehler bei der E-Mail-Verifizierung abfangen (z.B. Link abgelaufen)
+    $: if ($page.url.searchParams.get('error')) {
+        showVerifyError = $page.url.searchParams.get('error');
+        cleanUrlParameter('error');
+        setTimeout(() => showVerifyError = '', 6000);
     }
 
     // Hilfsfunktion: URL-Parameter optisch bereinigen, ohne die Seite neu zu laden
@@ -63,17 +79,24 @@
         {#if showLogoutMessage}
             <div class="success-banner">Du wurdest erfolgreich abgemeldet.</div>
         {/if}
-
         {#if showRegisterMessage}
             <div class="success-banner">Registrierung erfolgreich! Du kannst dich nun anmelden.</div>
         {/if}
-
         {#if showResetSuccess}
             <div class="success-banner">Dein Passwort wurde erfolgreich geändert. Du kannst dich jetzt anmelden.</div>
+        {/if}
+        {#if showVerifiedMessage}
+            <div class="success-banner">E-Mail erfolgreich bestätigt! Du kannst dich jetzt anmelden.</div>
         {/if}
 
         {#if showResetError}
             <div class="error-message">Der Reset-Link war ungültig oder ist abgelaufen. Bitte fordere einen neuen an.</div>
+        {/if}
+        {#if showVerifyError}
+            <div class="error-message">{showVerifyError}</div>
+        {/if}
+        {#if form?.error}
+            <div class="error-message">{form.error}</div>
         {/if}
 
         <form method="POST" action="?/login" use:enhance class="login-form">
@@ -84,20 +107,13 @@
             </div>
 
             <div class="input-group">
-                <div class="password-label-row">
-                    <label for="password">Passwort</label>
-                    <a href="/forgot-password" class="forgot-link">Passwort vergessen?</a>
-                </div>
+                <label for="password">Passwort</label>
                 <input type="password" id="password" name="password" required placeholder="••••••••" />
             </div>
 
-            {#if form?.error}
-                <div class="error-message">
-                    {form.error}
-                </div>
-            {/if}
-
             <button type="submit" class="btn-primary">Anmelden</button>
+            
+            <a href="/forgot-password" class="forgot-link-centered">Passwort vergessen?</a>
             
             <div class="divider">
                 <span>oder</span>
@@ -136,11 +152,6 @@
     .input-group { display: flex; flex-direction: column; gap: 0.4rem; }
     label { font-size: 0.85rem; font-weight: 600; color: #64748b; }
     
-    /* Passwort-Zeile mit Link "Passwort vergessen" */
-    .password-label-row { display: flex; justify-content: space-between; align-items: center; }
-    .forgot-link { font-size: 0.8rem; color: #3b82f6; text-decoration: none; font-weight: 600; transition: color 0.2s; }
-    .forgot-link:hover { color: #2563eb; text-decoration: underline; }
-
     input { padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 1rem; background: #f8fafc; color: #334155; transition: all 0.2s; box-sizing: border-box; width: 100%; }
     input::placeholder { color: #94a3b8; }
     input:focus { outline: none; border-color: #22c55e; background: #ffffff; box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15); }
@@ -149,6 +160,10 @@
     .btn-primary { background: #22c55e; color: #ffffff; padding: 0.8rem; border: none; border-radius: 6px; font-weight: 700; font-size: 1rem; cursor: pointer; transition: all 0.2s; margin-top: 0.5rem; }
     .btn-primary:hover { background: #16a34a; transform: translateY(-1px); }
     
+    /* Zentrierter Passwort-Vergessen Link */
+    .forgot-link-centered { text-align: center; font-size: 0.9rem; color: #64748b; text-decoration: none; font-weight: 600; margin-top: -0.5rem; transition: color 0.2s; }
+    .forgot-link-centered:hover { color: #3b82f6; text-decoration: underline; }
+
     /* Teiler & Sekundärer Button */
     .divider { display: flex; align-items: center; text-align: center; margin: 0.5rem 0; color: #94a3b8; font-size: 0.85rem; }
     .divider::before, .divider::after { content: ''; flex: 1; border-bottom: 1px solid #e2e8f0; }

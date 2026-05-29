@@ -91,10 +91,11 @@ export const actions = {
         // Alte Fehlversuche dieser IP löschen
         await db.collection('loginAttempts').deleteOne({ ip: ip });
 
-        // Session-ID generieren (entweder eigene UUID oder Nutzer-ID)
-        const sessionId = crypto.randomUUID(); 
+        // FEHLERBEHEBUNG: Wir nutzen zwingend die MongoDB User-ID als Session-ID,
+        // da dein +layout.server.js genau diese ID für die Validierung benötigt!
+        const sessionId = user._id.toString(); 
 
-        // 5. NEU: Aktivitäts-Log (Session Start) eintragen
+        // 5. Aktivitäts-Log (Session Start) eintragen
         await db.collection('sessionLogs').insertOne({
             sessionId: sessionId,
             userId: user._id,
@@ -114,6 +115,9 @@ export const actions = {
             maxAge: 60 * 60 * 24 * 7 // 7 Tage gültig
         });
 
+        // WICHTIG: Wir leiten hier auf das Root-Verzeichnis '/' um. 
+        // Falls deine Startseite nach dem Login einen anderen Pfad hat (z.B. '/dashboard'),
+        // musst du das '/' hier entsprechend anpassen!
         throw redirect(303, '/'); 
     }
 };
