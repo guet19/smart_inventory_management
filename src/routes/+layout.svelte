@@ -7,6 +7,7 @@
 
 <svelte:head>
     <link rel="icon" href={favicon} />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
 </svelte:head>
 
 <nav class="navbar navbar-expand-lg bg-body-tertiary">
