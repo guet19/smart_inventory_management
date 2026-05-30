@@ -1,40 +1,44 @@
-// src/routes/addarticle/+page.server.js
 import { error, fail } from '@sveltejs/kit';
-import { db } from '$lib/server/db'; 
+import db from '$lib/server/db'; // WICHTIG: Als Default-Import ohne geschweifte Klammern!
 import { ObjectId } from 'mongodb';
-import { writeFileSync, mkdirSync, existsSync } from 'fs';
-import { join } from 'path';
+import { v2 as cloudinary } from 'cloudinary';
+import { 
+    CLOUDINARY_CLOUD_NAME, 
+    CLOUDINARY_API_KEY, 
+    CLOUDINARY_API_SECRET 
+} from '$env/static/private';
+
+// Cloudinary Konfiguration
+cloudinary.config({
+    cloud_name: CLOUDINARY_CLOUD_NAME,
+    api_key: CLOUDINARY_API_KEY,
+    api_secret: CLOUDINARY_API_SECRET
+});
 
 export async function load({ cookies }) {
-    // 1. NEU: Die ID des eingeloggten Nutzers aus dem Cookie holen
     const userId = cookies.get('session');
     if (!userId) {
         throw error(401, 'Nicht autorisiert');
     }
 
     try {
-        // 2. NEU: Bei der Datenbankabfrage { userId: userId } als Filter setzen!
-        // So landen im Dropdown für die Kategorien keine Einträge von fremden Nutzern.
-        const categories = await db.collection('categories').find({ userId: userId }).toArray();
-        const attributes = await db.collection('filter_attributes').find({ userId: userId }).toArray();
+        // NEU: Nutze die gekapselten, serverless-sicheren Funktionen deiner neuen db.js
+        const categories = await db.getCategories(userId);
+        const attributes = await db.getFilterAttributes(userId);
 
         return {
-            categories: JSON.parse(JSON.stringify(categories)),
-            attributes: JSON.parse(JSON.stringify(attributes))
+            categories,
+            attributes
         };
     } catch (e) {
-        console.error("--- DATENBANK FEHLER DIAGNOSE ---");
+        console.error("--- LOAD FEHLER DIAGNOSE ---");
         console.error("Meldung:", e.message);
-        console.error("Name:", e.name);
-        console.error("---------------------------------");
-        
-        throw error(500, `Datenbank-Details: ${e.message}`);
+        throw error(500, `Fehler beim Laden der Formulardaten: ${e.message}`);
     }
 }
 
 export const actions = {
     default: async ({ request, cookies }) => {
-        // 1. NEU: Auch beim Speichern zwingend den Nutzer identifizieren
         const userId = cookies.get('session');
         if (!userId) {
             return fail(401, { error: 'Nicht autorisiert. Bitte neu anmelden.' });
@@ -45,8 +49,7 @@ export const actions = {
         const title = data.get('title');
         const mainCategoryId = data.get('mainCategoryId');
         const istBestandRaw = data.get('istBestand');
-        
-        const imageFile = data.get('image');
+        const imageFile = data.get('image'); 
 
         if (!title || !mainCategoryId || istBestandRaw === null || istBestandRaw === '') {
             return fail(400, { error: "Titel, Hauptkategorie und Ist-Bestand sind erforderlich." });
@@ -59,18 +62,26 @@ export const actions = {
 
             let imagePath = null;
 
-            const uploadDir = join(process.cwd(), 'static', 'uploads');
-            if (!existsSync(uploadDir)) {
-                mkdirSync(uploadDir, { recursive: true });
-            }
-
+            // Stream-Upload zu Cloudinary
             if (imageFile && imageFile instanceof Blob && imageFile.size > 0) {
-                const filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}.jpg`;
-                const filePath = join(uploadDir, filename);
+                const arrayBuffer = await imageFile.arrayBuffer();
+                const buffer = Buffer.from(arrayBuffer);
                 
-                const buffer = Buffer.from(await imageFile.arrayBuffer());
-                writeFileSync(filePath, buffer);
-                imagePath = `/uploads/${filename}`;
+                const uploadResult = await new Promise((resolve, reject) => {
+                    const uploadStream = cloudinary.uploader.upload_stream(
+                        { 
+                            folder: 'storify_uploads',
+                            allowed_formats: ['jpg', 'png', 'webp'] 
+                        },
+                        (error, result) => {
+                            if (error) return reject(error);
+                            resolve(result);
+                        }
+                    );
+                    uploadStream.end(buffer);
+                });
+
+                imagePath = uploadResult.secure_url;
             }
 
             const itemAttributes = {};
@@ -81,36 +92,32 @@ export const actions = {
                 }
             }
 
-            // 2. NEU: Das Objekt um die userId erweitern
             const newArticle = {
-                userId: userId, // <-- Hier wird der Artikel fest mit dem Nutzer verknüpft!
                 title,
                 description: data.get('description'),
                 mainCategoryId: new ObjectId(mainCategoryId),
                 subcategoryId: data.get('subcategoryId') || null,
-                
                 gtin: data.get('gtin') || "",
-                
                 istBestand,
                 sollBestand,
                 mindestBestand,
-                
                 supplier: data.get('supplier'),
                 price: parseFloat(data.get('price') || "0"),
                 orderLink: data.get('orderLink'),
-                imagePath,
+                imagePath, 
                 attributes: itemAttributes,
                 createdAt: new Date(),
                 updatedAt: new Date()
             };
 
-            await db.collection('articles').insertOne(newArticle);
+            // NEU: Nutze auch hier die createArticle-Funktion aus der db.js
+            await db.createArticle(userId, newArticle);
 
             return { success: true, message: "Artikel erfolgreich gespeichert!" };
             
         } catch (e) {
-            console.error("Speicherfehler:", e);
-            return fail(500, { error: "Fehler beim Speichern in der Datenbank." });
+            console.error("🚨 SPEICHERFEHLER:", e.message);
+            return fail(500, { error: `Serverfehler beim Speichern: ${e.message}` });
         }
     }
 };

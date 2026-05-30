@@ -3,9 +3,24 @@ import { MongoClient, ObjectId } from "mongodb";
 import { DB_URI } from "$env/static/private";
 import bcrypt from "bcryptjs"; 
 
-const client = new MongoClient(DB_URI);
-await client.connect();
-export const db = client.db("Storify");
+// ==========================================
+// 0. SERVERLESS CONNECTION POOLING
+// ==========================================
+let client;
+let clientPromise;
+
+if (!global._mongoClientPromise) {
+    client = new MongoClient(DB_URI);
+    global._mongoClientPromise = client.connect();
+}
+clientPromise = global._mongoClientPromise;
+
+// Hilfsfunktion: Holt die gecachte Verbindung
+async function getDb() {
+    const connectedClient = await clientPromise;
+    return connectedClient.db("Storify");
+}
+
 
 // ==========================================
 // 1. KATEGORIEN VERWALTUNG
@@ -14,11 +29,11 @@ export const db = client.db("Storify");
 async function getCategories(userId) {
     let categories = [];
     try {
+        const db = await getDb();
         const collection = db.collection("categories");
-        // NEU: Nur Kategorien dieses Users laden
         categories = await collection.find({ userId: userId }).toArray();
         categories.forEach(cat => {
-            cat._id = cat._id.toString();
+            if (cat._id) cat._id = cat._id.toString();
         });
     } catch (error) {
         console.error("Fehler beim Laden der Kategorien:", error);
@@ -28,14 +43,15 @@ async function getCategories(userId) {
 
 async function createMainCategory(userId, name) {
     try {
+        const db = await getDb();
         const collection = db.collection("categories");
         const result = await collection.insertOne({
-            userId: userId, // NEU: Verknüpfung zum Nutzer
+            userId: userId, 
             name: name,
             subcategories: [], 
             createdAt: new Date()
         });
-        return result.insertedId; 
+        return result.insertedId.toString(); 
     } catch (error) {
         console.error("Fehler beim Speichern der Hauptkategorie:", error);
         throw error;
@@ -44,10 +60,10 @@ async function createMainCategory(userId, name) {
 
 async function createSubcategory(userId, mainCategoryId, subName) {
     try {
+        const db = await getDb();
         const collection = db.collection("categories");
         const subId = "sub_" + Date.now(); 
         const result = await collection.updateOne(
-            // NEU: userId in der Abfrage als Sicherheitscheck
             { _id: new ObjectId(mainCategoryId), userId: userId },
             { $push: { subcategories: { id: subId, name: subName, allowed_attributes: [] } } }
         );
@@ -60,6 +76,7 @@ async function createSubcategory(userId, mainCategoryId, subName) {
 
 async function deleteSubcategory(userId, mainCategoryId, subCategoryId) {
     try {
+        const db = await getDb();
         const collection = db.collection("categories");
         const result = await collection.updateOne(
             { _id: new ObjectId(mainCategoryId), userId: userId },
@@ -74,6 +91,7 @@ async function deleteSubcategory(userId, mainCategoryId, subCategoryId) {
 
 async function deleteMainCategory(userId, id) {
     try {
+        const db = await getDb();
         const collection = db.collection("categories");
         const result = await collection.deleteOne({ _id: new ObjectId(id), userId: userId });
         return result;
@@ -85,6 +103,7 @@ async function deleteMainCategory(userId, id) {
 
 async function renameMainCategory(userId, id, newName) {
     try {
+        const db = await getDb();
         const collection = db.collection("categories");
         const result = await collection.updateOne(
             { _id: new ObjectId(id), userId: userId },
@@ -99,6 +118,7 @@ async function renameMainCategory(userId, id, newName) {
 
 async function renameSubcategory(userId, mainCategoryId, subCategoryId, newName) {
     try {
+        const db = await getDb();
         const collection = db.collection("categories");
         const result = await collection.updateOne(
             { _id: new ObjectId(mainCategoryId), userId: userId, "subcategories.id": subCategoryId },
@@ -113,6 +133,7 @@ async function renameSubcategory(userId, mainCategoryId, subCategoryId, newName)
 
 async function updateSubcategoryAttributes(userId, mainCategoryId, subCategoryId, attributeIds) {
     try {
+        const db = await getDb();
         const collection = db.collection("categories");
         const result = await collection.updateOne(
             { _id: new ObjectId(mainCategoryId), userId: userId, "subcategories.id": subCategoryId },
@@ -132,10 +153,11 @@ async function updateSubcategoryAttributes(userId, mainCategoryId, subCategoryId
 async function getFilterAttributes(userId) {
     let attributes = [];
     try {
+        const db = await getDb();
         const collection = db.collection("filter_attributes");
         attributes = await collection.find({ userId: userId }).toArray();
         attributes.forEach(attr => {
-            attr._id = attr._id.toString();
+            if (attr._id) attr._id = attr._id.toString();
         });
     } catch (error) {
         console.error("Fehler beim Laden der Attribute:", error);
@@ -145,8 +167,8 @@ async function getFilterAttributes(userId) {
 
 async function createFilterAttribute(userId, attributeData) {
     try {
+        const db = await getDb();
         const collection = db.collection("filter_attributes");
-        // Sicherstellen, dass die userId ins Dokument geschrieben wird
         const dataToInsert = { ...attributeData, userId: userId };
         const result = await collection.insertOne(dataToInsert);
         return result;
@@ -158,6 +180,7 @@ async function createFilterAttribute(userId, attributeData) {
 
 async function deleteFilterAttribute(userId, id) {
     try {
+        const db = await getDb();
         const collection = db.collection("filter_attributes");
         const result = await collection.deleteOne({ _id: new ObjectId(id), userId: userId });
         return result;
@@ -169,6 +192,7 @@ async function deleteFilterAttribute(userId, id) {
 
 async function updateFilterAttribute(userId, id, attributeData) {
     try {
+        const db = await getDb();
         const collection = db.collection("filter_attributes");
         const result = await collection.updateOne(
             { _id: new ObjectId(id), userId: userId },
@@ -183,11 +207,13 @@ async function updateFilterAttribute(userId, id, attributeData) {
 
 async function getFilterAttributeByLabel(userId, label) {
     try {
+        const db = await getDb();
         const collection = db.collection("filter_attributes");
         const attribute = await collection.findOne({ 
             userId: userId,
             label: { $regex: new RegExp(`^${label}$`, 'i') } 
         });
+        if (attribute && attribute._id) attribute._id = attribute._id.toString();
         return attribute;
     } catch (error) {
         console.error("Fehler bei der Label-Prüfung:", error);
@@ -197,6 +223,7 @@ async function getFilterAttributeByLabel(userId, label) {
 
 async function addOptionToFilterAttribute(userId, id, newOption) {
     try {
+        const db = await getDb();
         const collection = db.collection("filter_attributes");
         const result = await collection.updateOne(
             { _id: new ObjectId(id), userId: userId },
@@ -211,6 +238,7 @@ async function addOptionToFilterAttribute(userId, id, newOption) {
 
 async function removeOptionFromFilterAttribute(userId, id, optionToRemove) {
     try {
+        const db = await getDb();
         const collection = db.collection("filter_attributes");
         const result = await collection.updateOne(
             { _id: new ObjectId(id), userId: userId },
@@ -229,6 +257,7 @@ async function removeOptionFromFilterAttribute(userId, id, optionToRemove) {
 
 async function createArticle(userId, articleData) {
     try {
+        const db = await getDb();
         const collection = db.collection("articles");
         const dataToInsert = { ...articleData, userId: userId };
         const result = await collection.insertOne(dataToInsert);
@@ -242,14 +271,13 @@ async function createArticle(userId, articleData) {
 async function getArticles(userId) {
     let articles = [];
     try {
+        const db = await getDb();
         const collection = db.collection("articles");
         articles = await collection.find({ userId: userId }).sort({ createdAt: -1 }).toArray();
         
         articles.forEach(article => {
             if (article._id) article._id = article._id.toString();
             if (article.mainCategoryId) article.mainCategoryId = article.mainCategoryId.toString();
-            if (article.createdAt) article.createdAt = article.createdAt.toISOString();
-            if (article.updatedAt) article.updatedAt = article.updatedAt.toISOString();
         });
     } catch (error) {
         console.error("Fehler beim Laden der Artikel:", error);
@@ -259,11 +287,13 @@ async function getArticles(userId) {
 
 async function getArticleById(userId, id) {
     try {
+        const db = await getDb();
         const collection = db.collection("articles");
         const article = await collection.findOne({ _id: new ObjectId(id), userId: userId });
         
         if (article) {
             article._id = article._id.toString(); 
+            if (article.mainCategoryId) article.mainCategoryId = article.mainCategoryId.toString();
         }
         return article;
     } catch (error) {
@@ -274,6 +304,7 @@ async function getArticleById(userId, id) {
 
 async function updateArticle(userId, id, updateData) {
     try {
+        const db = await getDb();
         const collection = db.collection("articles");
         const result = await collection.updateOne(
             { _id: new ObjectId(id), userId: userId },
@@ -288,8 +319,8 @@ async function updateArticle(userId, id, updateData) {
 
 async function deleteArticle(userId, id) {
     try {
+        const db = await getDb();
         const collection = db.collection("articles");
-        // Der Sicherheitscheck: Lösche nur, wenn die ID UND die userId übereinstimmen!
         const result = await collection.deleteOne({ 
             _id: new ObjectId(id), 
             userId: userId 
@@ -307,8 +338,11 @@ async function deleteArticle(userId, id) {
 
 async function getUserByEmail(email) {
     try {
+        const db = await getDb();
         const collection = db.collection("users");
-        return await collection.findOne({ email: email });
+        const user = await collection.findOne({ email: email });
+        if (user && user._id) user._id = user._id.toString();
+        return user;
     } catch (error) {
         console.error("Fehler beim Suchen des Benutzers:", error);
         return null;
@@ -317,6 +351,7 @@ async function getUserByEmail(email) {
 
 async function createInitialUser(email, plainTextPassword, userData = {}, verificationData = {}) {
     try {
+        const db = await getDb();
         const collection = db.collection("users");
         const existingUser = await collection.findOne({ email: email });
         if (existingUser) return { success: false, message: "Benutzer existiert bereits" };
@@ -333,7 +368,6 @@ async function createInitialUser(email, plainTextPassword, userData = {}, verifi
             birthDate: userData.birthDate ? new Date(userData.birthDate) : null,
             createdAt: new Date(),
             
-            // NEU: Verifizierungs-Daten
             isVerified: false,
             verificationCode: verificationData.code,
             verificationToken: verificationData.token,
@@ -346,9 +380,9 @@ async function createInitialUser(email, plainTextPassword, userData = {}, verifi
     }
 }
 
-// NEUE Funktion: Nutzer verifizieren (überprüft Code ODER Token)
 async function verifyUser(emailOrToken, isToken = false) {
     try {
+        const db = await getDb();
         const collection = db.collection("users");
         const query = isToken ? { verificationToken: emailOrToken } : { email: emailOrToken };
         
@@ -358,7 +392,6 @@ async function verifyUser(emailOrToken, isToken = false) {
         if (user.isVerified) return { success: false, message: "Account ist bereits verifiziert." };
         if (user.verificationExpires < new Date()) return { success: false, message: "Der Code ist abgelaufen. Bitte registriere dich neu." };
 
-        // Bei Erfolg: isVerified auf true setzen und Codes aus Sicherheitsgründen löschen
         await collection.updateOne(
             { _id: user._id },
             { 
@@ -376,13 +409,13 @@ async function verifyUser(emailOrToken, isToken = false) {
 
 async function getUserById(id) {
     try {
-        // NEU: Prüfen, ob die ID überhaupt das richtige MongoDB-Format hat
-        if (!ObjectId.isValid(id)) {
-            return null; // Wenn nicht (z.B. die alte UUID), direkt abbrechen
-        }
+        if (!ObjectId.isValid(id)) return null; 
         
+        const db = await getDb();
         const collection = db.collection("users");
-        return await collection.findOne({ _id: new ObjectId(id) });
+        const user = await collection.findOne({ _id: new ObjectId(id) });
+        if (user && user._id) user._id = user._id.toString();
+        return user;
     } catch (error) {
         console.error("Fehler beim Suchen des Benutzers nach ID:", error);
         return null;
@@ -391,6 +424,7 @@ async function getUserById(id) {
 
 async function updateUser(id, updateData) {
     try {
+        const db = await getDb();
         const collection = db.collection("users");
         const result = await collection.updateOne(
             { _id: new ObjectId(id) },
@@ -402,14 +436,18 @@ async function updateUser(id, updateData) {
         throw error;
     }
 }
+
 // ==========================================
-// 5. SECURITY & LOGGING (Neu)
+// 5. SECURITY & LOGGING
 // ==========================================
 
 async function getLoginAttempt(ip) {
     try {
+        const db = await getDb();
         const collection = db.collection("loginAttempts");
-        return await collection.findOne({ ip: ip });
+        const attempt = await collection.findOne({ ip: ip });
+        if (attempt && attempt._id) attempt._id = attempt._id.toString();
+        return attempt;
     } catch (error) {
         console.error("Fehler beim Laden der Login-Versuche:", error);
         return null;
@@ -418,6 +456,7 @@ async function getLoginAttempt(ip) {
 
 async function upsertLoginAttempt(ip, count, lockUntil) {
     try {
+        const db = await getDb();
         const collection = db.collection("loginAttempts");
         return await collection.updateOne(
             { ip: ip },
@@ -425,7 +464,7 @@ async function upsertLoginAttempt(ip, count, lockUntil) {
                 $set: { 
                     count: count, 
                     lockUntil: lockUntil,
-                    createdAt: new Date() // Trigger für den Compass TTL-Index!
+                    createdAt: new Date()
                 } 
             },
             { upsert: true }
@@ -437,6 +476,7 @@ async function upsertLoginAttempt(ip, count, lockUntil) {
 
 async function deleteLoginAttempt(ip) {
     try {
+        const db = await getDb();
         const collection = db.collection("loginAttempts");
         return await collection.deleteOne({ ip: ip });
     } catch (error) {
@@ -446,6 +486,7 @@ async function deleteLoginAttempt(ip) {
 
 async function createSessionLog(sessionId, userId, email) {
     try {
+        const db = await getDb();
         const collection = db.collection("sessionLogs");
         return await collection.insertOne({
             sessionId: sessionId,
@@ -454,7 +495,7 @@ async function createSessionLog(sessionId, userId, email) {
             loginTime: new Date(),
             logoutTime: null, 
             lastActive: new Date(),
-            createdAt: new Date() // Trigger für den Compass TTL-Index!
+            createdAt: new Date()
         });
     } catch (error) {
         console.error("Fehler beim Erstellen des Session-Logs:", error);
@@ -463,6 +504,7 @@ async function createSessionLog(sessionId, userId, email) {
 
 async function endSessionLog(sessionId) {
     try {
+        const db = await getDb();
         const collection = db.collection("sessionLogs");
         return await collection.updateOne(
             { sessionId: sessionId },
@@ -475,34 +517,28 @@ async function endSessionLog(sessionId) {
 
 async function savePasswordResetToken(email) {
     try {
-        const collection = db.collection("users"); // Prüfe, ob deine Collection wirklich "users" heißt
+        const db = await getDb();
+        const collection = db.collection("users");
         
-        // 1. E-Mail extrem bereinigen (alles klein, keine Leerzeichen)
         const cleanEmail = email.toString().toLowerCase().trim();
-
-        // 2. Suche in der DB (Case-Insensitive! Findet max@... auch wenn Max@... gesucht wird)
         const user = await collection.findOne({ 
             email: { $regex: new RegExp(`^${cleanEmail}$`, 'i') } 
         });
 
         if (!user) {
             console.log(`[DB] Kein Nutzer mit E-Mail ${cleanEmail} gefunden.`);
-            return null; // Bricht ab, wenn wirklich niemand gefunden wurde
+            return null; 
         }
 
-        // 3. Token und Ablaufdatum (1 Stunde) generieren
         const token = crypto.randomBytes(32).toString('hex');
         const expires = new Date(Date.now() + 60 * 60 * 1000); 
 
-        // 4. In der Datenbank speichern
         await collection.updateOne(
             { _id: user._id },
             { $set: { resetToken: token, resetExpires: expires } }
         );
         
         console.log(`[DB] Token für ${cleanEmail} erfolgreich generiert.`);
-        
-        // WICHTIG: Das Token MUSS zurückgegeben werden, sonst denkt die Route, es gab einen Fehler!
         return token; 
 
     } catch (error) {
@@ -513,11 +549,13 @@ async function savePasswordResetToken(email) {
 
 async function getUserByResetToken(token) {
     try {
+        const db = await getDb();
         const collection = db.collection("users");
         const user = await collection.findOne({ resetToken: token });
         
-        // Prüfen ob Token existiert und noch nicht abgelaufen ist
         if (!user || user.resetExpires < new Date()) return null;
+        if (user._id) user._id = user._id.toString();
+        
         return user;
     } catch (error) {
         console.error("Fehler beim Suchen des Tokens:", error);
@@ -527,6 +565,7 @@ async function getUserByResetToken(token) {
 
 async function resetUserPassword(userId, plainTextPassword) {
     try {
+        const db = await getDb();
         const collection = db.collection("users");
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(plainTextPassword, salt);
@@ -535,7 +574,6 @@ async function resetUserPassword(userId, plainTextPassword) {
             { _id: new ObjectId(userId) },
             { 
                 $set: { password: hashedPassword },
-                // Token und Ablaufdatum nach Erfolg komplett aus DB löschen
                 $unset: { resetToken: "", resetExpires: "" } 
             }
         );
@@ -545,14 +583,15 @@ async function resetUserPassword(userId, plainTextPassword) {
         return false;
     }
 } 
+
 async function renewVerificationData(email) {
     try {
+        const db = await getDb();
         const collection = db.collection("users");
         
-        // Einen neuen 6-stelligen Code und einen neuen Token generieren
         const code = Math.floor(100000 + Math.random() * 900000).toString();
         const token = crypto.randomBytes(32).toString('hex');
-        const expires = new Date(Date.now() + 15 * 60000); // Wieder 15 Min gültig
+        const expires = new Date(Date.now() + 15 * 60000); 
 
         await collection.updateOne(
             { email: email },
@@ -566,7 +605,6 @@ async function renewVerificationData(email) {
     }
 }
 
-// Hier folgt jetzt ein sauberer Export-Block:
 export default { 
     getCategories, 
     createMainCategory,
