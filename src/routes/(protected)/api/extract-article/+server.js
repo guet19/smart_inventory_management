@@ -117,9 +117,9 @@ ${finalTextToAnalyze}
             config: {
                 systemInstruction: `Du bist ein technischer Daten-Extraktor. Extrahiere Produktdaten präzise im JSON-Format.
 REGELN:
-1. TITEL: Sauberer Artikelname. Keine Shop-Namen oder SEO-Begriffe.
+1. TITEL: Sauberer Artikelname inkl. relevanter Dimensionen (z.B. "5 x 60 mm"). WICHTIG: Entferne zwingend alle Verpackungseinheiten, Stückzahlen, Gewichte oder Mengen (z.B. "| 50 Stück", "10er Pack", "Inhalt: 20") aus dem Titel!
 2. BESCHREIBUNG: Schreibe 2-4 informative Sätze basierend auf dem Text. Hebe Besonderheiten hervor.
-3. PREIS & MENGE: Wenn es ein Multipack ist (z.B. '12 x 15g'), rechne die Gesamtstückzahl aus und trage sie in 'packQuantity' ein. Den Gesamtpreis in 'totalPackPrice'. Bei Einzelartikeln nur 'price'.
+3. PREIS & MENGE: Wenn es ein Multipack ist (z.B. '12 x 15g', '50 Stück'), rechne die Gesamtstückzahl aus und trage sie in 'packQuantity' ein. Den Gesamtpreis in 'totalPackPrice'. Bei Einzelartikeln nur 'price'.
 4. GTIN/EAN: Suche nach GTIN oder Herstellernummern.
 5. ZAHLEN: Bei "ui_type": "number" IMMER nur die nackte Zahl antworten (keine Einheiten!).
 6. LIEFERANT: Name des Online-Shops (aus der URL ableiten).
@@ -127,7 +127,6 @@ GIB AUSSCHLIESSLICH DAS JSON ZURÜCK! Keine Begrüßung, keine Erklärungen.`,
                 responseMimeType: "application/json",
                 temperature: 0.1
             }
-        });
 
         let aiResponseText = result.text;
         
