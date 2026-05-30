@@ -127,7 +127,7 @@ GIB AUSSCHLIESSLICH DAS JSON ZURÜCK! Keine Begrüßung, keine Erklärungen.`,
                 responseMimeType: "application/json",
                 temperature: 0.1
             }
-
+});
         let aiResponseText = result.text;
         
         // --- DIAGNOSE LOGS KI ANTWORT ---
