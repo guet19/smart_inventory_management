@@ -5,8 +5,7 @@ import { sendPasswordResetEmail } from '$lib/server/email.js';
 export const actions = {
     default: async ({ request }) => {
         const data = await request.formData();
-        const email = data.get('email');
-
+        const email = data.get('email').toString().toLowerCase().trim();
         if (!email) {
             return fail(400, { error: 'Bitte gib eine E-Mail-Adresse ein.' });
         }

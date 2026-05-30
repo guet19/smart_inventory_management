@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { MongoClient, ObjectId } from "mongodb";
 import { DB_URI } from "$env/static/private";
 import bcrypt from "bcryptjs"; 
@@ -474,21 +475,38 @@ async function endSessionLog(sessionId) {
 
 async function savePasswordResetToken(email) {
     try {
-        const collection = db.collection("users");
-        // Wir erzeugen einen sicheren, zufälligen Token
-        const token = crypto.randomBytes(32).toString('hex');
-        const expires = new Date(Date.now() + 3600000); // Token ist exakt 1 Stunde gültig
+        const collection = db.collection("users"); // Prüfe, ob deine Collection wirklich "users" heißt
+        
+        // 1. E-Mail extrem bereinigen (alles klein, keine Leerzeichen)
+        const cleanEmail = email.toString().toLowerCase().trim();
 
-        const result = await collection.updateOne(
-            { email: email },
+        // 2. Suche in der DB (Case-Insensitive! Findet max@... auch wenn Max@... gesucht wird)
+        const user = await collection.findOne({ 
+            email: { $regex: new RegExp(`^${cleanEmail}$`, 'i') } 
+        });
+
+        if (!user) {
+            console.log(`[DB] Kein Nutzer mit E-Mail ${cleanEmail} gefunden.`);
+            return null; // Bricht ab, wenn wirklich niemand gefunden wurde
+        }
+
+        // 3. Token und Ablaufdatum (1 Stunde) generieren
+        const token = crypto.randomBytes(32).toString('hex');
+        const expires = new Date(Date.now() + 60 * 60 * 1000); 
+
+        // 4. In der Datenbank speichern
+        await collection.updateOne(
+            { _id: user._id },
             { $set: { resetToken: token, resetExpires: expires } }
         );
+        
+        console.log(`[DB] Token für ${cleanEmail} erfolgreich generiert.`);
+        
+        // WICHTIG: Das Token MUSS zurückgegeben werden, sonst denkt die Route, es gab einen Fehler!
+        return token; 
 
-        // Wenn der Nutzer existierte, geben wir den Token zurück (für die E-Mail)
-        if (result.modifiedCount > 0) return token;
-        return null;
     } catch (error) {
-        console.error("Fehler beim Speichern des Reset-Tokens:", error);
+        console.error("[DB] Fehler beim Speichern des Reset-Tokens:", error);
         return null;
     }
 }
@@ -526,7 +544,27 @@ async function resetUserPassword(userId, plainTextPassword) {
         console.error("Fehler beim Zurücksetzen des Passworts:", error);
         return false;
     }
-} // <--- DIESE KLAMMER HAT GEFEHLT!
+} 
+async function renewVerificationData(email) {
+    try {
+        const collection = db.collection("users");
+        
+        // Einen neuen 6-stelligen Code und einen neuen Token generieren
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
+        const token = crypto.randomBytes(32).toString('hex');
+        const expires = new Date(Date.now() + 15 * 60000); // Wieder 15 Min gültig
+
+        await collection.updateOne(
+            { email: email },
+            { $set: { verificationCode: code, verificationToken: token, verificationExpires: expires } }
+        );
+        
+        return { code, token };
+    } catch (error) {
+        console.error("Fehler beim Erneuern der Verifizierungsdaten:", error);
+        return null;
+    }
+}
 
 // Hier folgt jetzt ein sauberer Export-Block:
 export default { 
@@ -562,5 +600,6 @@ export default {
     endSessionLog,
     savePasswordResetToken,
     getUserByResetToken,
-    resetUserPassword
+    resetUserPassword,
+    renewVerificationData
 };

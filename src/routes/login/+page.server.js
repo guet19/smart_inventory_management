@@ -1,11 +1,11 @@
-// src/routes/login/+page.server.js
 import { redirect, fail } from '@sveltejs/kit';
 import bcrypt from 'bcryptjs';
 import db from '$lib/server/db.js';
+import { sendVerificationEmail } from '$lib/server/email.js';
 
 export async function load({ cookies, url }) {
-    // Wenn jemand schon eingeloggt ist und /login aufruft, leiten wir ihn direkt weiter.
-    // Falls er vom Lesezeichen kommt, schicken wir ihn ans Ziel, sonst aufs Dashboard.
+    // Wenn jemand schon eingeloggt ist, leiten wir ihn direkt weiter.
+    // Falls er vom KI-Lesezeichen kommt, schicken wir ihn ans Ziel, sonst aufs Dashboard.
     if (cookies.get('session')) {
         const redirectTo = url.searchParams.get('redirectTo') || '/';
         throw redirect(303, redirectTo);
@@ -13,6 +13,9 @@ export async function load({ cookies, url }) {
 }
 
 export const actions = {
+    // -------------------------------------------------------------------------
+    // AKTION 1: DER NORMALE LOGIN
+    // -------------------------------------------------------------------------
     login: async ({ request, cookies, getClientAddress, url }) => {
         const ip = getClientAddress();
         const now = new Date();
@@ -31,7 +34,6 @@ export const actions = {
             });
         }
 
-        // Formulardaten auslesen
         const data = await request.formData();
         const email = data.get('email');
         const password = data.get('password');
@@ -40,7 +42,7 @@ export const actions = {
             return fail(400, { error: 'Bitte fülle alle Felder aus.' });
         }
 
-        // Hilfsfunktion: Speichert einen Fehlversuch ab und checkt, ob wir die IP sperren müssen
+        // Hilfsfunktion: Speichert einen Fehlversuch ab und checkt Sperrzeiten
         const registerFailedAttempt = async () => {
             attemptData.count += 1;
             let lockTime = attemptData.lockUntil;
@@ -66,39 +68,64 @@ export const actions = {
         if (user) {
             isPasswordValid = await bcrypt.compare(password, user.password);
         } else {
-            // Dummy-Hash prüfen, damit Angreifer nicht an der Server-Antwortzeit erkennen können, ob eine Mail existiert
+            // Dummy-Hash prüfen (Security Best Practice)
             await bcrypt.compare(password, "$2a$10$dummyHashThatTakesRoughlyTheSameTimeHere1234567890123");
         }
 
         if (!user || !isPasswordValid) return registerFailedAttempt();
 
-        // Prüfen, ob der Nutzer den Magic Link in der Mail schon geklickt hat
+        // 4. Verifizierungs-Check
         if (user.isVerified === false) {
-            return fail(403, { error: 'Bitte bestätige zuerst deine E-Mail-Adresse (prüfe auch den Spam-Ordner).' });
+            // WICHTIG: Wir geben die E-Mail ans Frontend zurück, damit der "Erneut senden"-Button funktioniert
+            return fail(403, { 
+                error: 'Dein Konto wurde noch nicht bestätigt.',
+                unverifiedEmail: email
+            });
         }
 
-        // 4. LOGIN ERFOLGREICH!
-        // Alte Fehlversuche dieser IP wieder löschen
+        // 5. LOGIN ERFOLGREICH!
         await db.deleteLoginAttempt(ip);
 
         // Die echte MongoDB User-ID als Session-ID nutzen
         const sessionId = user._id.toString(); 
 
-        // 5. Session Log anlegen (Wichtig für Tracking und Logout)
+        // Session Log anlegen
         await db.createSessionLog(sessionId, user._id, user.email);
 
-        // Cookie setzen
+        // Cookie setzen (sameSite: 'lax' ist wichtig für das KI-Lesezeichen)
         cookies.set('session', sessionId, {
             path: '/', 
             httpOnly: true, 
-            sameSite: 'lax', // 'lax' ist entscheidend, damit das Lesezeichen aus anderen Shops funktioniert!
+            sameSite: 'lax', 
             secure: process.env.NODE_ENV === 'production', 
             maxAge: 60 * 60 * 24 * 7 // 7 Tage gültig
         });
 
-        // 6. Dynamische Weiterleitung
-        // Schauen, ob sich das Lesezeichen ein Ziel gemerkt hat. Wenn nicht, geht's zum Dashboard ('/').
+        // Schauen, ob sich das Lesezeichen ein Ziel gemerkt hat
         const redirectTo = url.searchParams.get('redirectTo') || '/';
         throw redirect(303, redirectTo); 
+    },
+
+    // -------------------------------------------------------------------------
+    // AKTION 2: BESTÄTIGUNGS-EMAIL ERNEUT SENDEN
+    // -------------------------------------------------------------------------
+    resendVerification: async ({ request }) => {
+        const data = await request.formData();
+        const email = data.get('email');
+
+        if (!email) return fail(400, { error: 'E-Mail fehlt.' });
+
+        const newVerData = await db.renewVerificationData(email);
+        
+        if (newVerData) {
+            try {
+                await sendVerificationEmail(email, newVerData.code, newVerData.token);
+            } catch (error) {
+                console.error("Fehler beim erneuten E-Mail-Versand:", error);
+            }
+        }
+
+        // Wir geben aus Sicherheitsgründen immer 'success' zurück
+        return { resendSuccess: true };
     }
 };

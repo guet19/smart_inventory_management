@@ -1,4 +1,3 @@
-// src/routes/api/extract-article/+server.js
 import { json } from '@sveltejs/kit';
 import * as cheerio from 'cheerio';
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -10,47 +9,62 @@ export async function POST({ request }) {
 
         if (!html) return json({ error: 'Kein Text/HTML empfangen.' }, { status: 400 });
 
-        const $ = cheerio.load(html);
+        if (!env.GEMINI_API_KEY) {
+            console.error("KRITISCHER FEHLER: GEMINI_API_KEY fehlt in den Server-Umgebungsvariablen!");
+            return json({ error: 'API-Schlüssel fehlt auf dem Server.' }, { status: 500 });
+        }
+
+        let contentToParse = html;
+
+        if (html.trim().startsWith('http://') || html.trim().startsWith('https://')) {
+            try {
+                const fetchRes = await fetch(html.trim());
+                if (fetchRes.ok) {
+                    contentToParse = await fetchRes.text();
+                }
+            } catch (e) {
+                console.error("Fehler beim Herunterladen der URL:", e);
+            }
+        }
+
+        const $ = cheerio.load(contentToParse);
         
         let manualImageUrl = $('meta[property="og:image"]').attr('content') 
                           || $('meta[name="twitter:image"]').attr('content')
                           || $('img').not('header img, footer img, .icon img').first().attr('src');
 
-        // --- OPTIMIERUNG 1: JSON-LD (Strukturierte Produktdaten) retten ---
         let jsonLdText = "";
         $('script[type="application/ld+json"]').each((_, el) => {
             jsonLdText += $(el).html() + " \n";
         });
 
-        // Jetzt erst den HTML-Müll aufräumen
         $('script, style, nav, footer, header, noscript, svg, iframe').remove();
         const cleanText = $('body').text().replace(/\s+/g, ' ').trim().substring(0, 15000);
 
-        // Die KI bekommt nun die strukturierten Daten PLUS den sichtbaren Text
         const finalTextToAnalyze = `Versteckte Shop-Daten (JSON-LD):\n${jsonLdText}\n\nSichtbarer Webseiten-Text:\n${cleanText}`;
 
-        const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY || "");
+        const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
         
-        // --- OPTIMIERUNG 2: System-Instructions für striktere Regeleinhaltung ---
+        // --- HIER WURDEN DIE REGELN FÜR DIE KI OPTIMIERT ---
         const model = genAI.getGenerativeModel({ 
-            model: "gemini-2.5-flash",
+            model: "gemini-1.5-flash",
             systemInstruction: `Du bist ein technischer Daten-Extraktor für das lokale Lagermanagement-System "Sortify". 
 Deine primäre Aufgabe ist es, Produktdaten präzise im JSON-Format zu extrahieren.
 
 WICHTIGE REGELN:
-1. TITEL: Generiere einen sauberen, professionellen Artikelnamen. Entferne zwingend alle Shop-Namen (z.B. 'kaufen bei...'), SEO-Begriffe und Packungsgrößen (z.B. '| 100 Stück'), da die Artikel als Einzelstücke verwaltet werden.
-2. PREIS: Wenn der Artikel in einer Packung verkauft wird, fülle "totalPackPrice" (Gesamtpreis) und "packQuantity" (Stückzahl als Zahl) aus. Bei Einzelartikeln fülle nur "price" aus.
-3. GTIN/EAN: Suche intensiv nach einer GTIN, EAN oder eindeutigen Herstellernummer und trage sie in "gtin" ein.
-4. ZAHLEN & EINHEITEN: Wenn ein Attribut den "ui_type": "number" hat, antworte AUSSCHLIESSLICH mit der nackten Zahl (Dezimalstellen mit Punkt). Entferne jeglichen Text und Einheiten! (Richtig: "20", Falsch: "20 mm").
-5. LIEFERANT / SHOP: Mit "supplier" ist zwingend der Name des Online-Shops gemeint, bei dem der Artikel gefunden wurde (z.B. "JUMBO", "Galaxus", "Brack"). Nutze die übergebenen Daten (URL, Shop-Tag), um diesen Namen abzuleiten. Trage den Shop-Namen in "supplier" ein. Die eigentliche Marke des Produkts (z.B. 'Spax' oder 'Bosch') ist hier FALSCH und darf nicht in dieses Feld.
-6. FEHLENDE DATEN: Erfinde nichts. Was nicht im Text steht, wird als null zurückgegeben.`,
+1. TITEL: Generiere einen sauberen, professionellen Artikelnamen. Entferne zwingend alle Shop-Namen und SEO-Begriffe.
+2. BESCHREIBUNG: Schreibe eine informative, ausführliche und ansprechende Zusammenfassung (ca. 3-5 Sätze). Nutze die gelieferten Shop-Texte, um die wichtigsten Eigenschaften (z.B. Inhaltsstoffe, Besonderheiten, Funktionen) hervorzuheben. Zu kurze Einzeiler sind verboten!
+3. PREIS & MENGE (SEHR WICHTIG): Suche extrem genau nach dem Preis (z.B. CHF, Fr., EUR). Wenn es ein Multipack, Mix oder Sparpaket ist (z.B. '12 x 15g' oder 'Mix 1: 48 Stück'), rechne die absolute Gesamtstückzahl aus und trage sie in 'packQuantity' ein. Den gefundenen Gesamtpreis trägst du in 'totalPackPrice' ein. Bei reinen Einzelartikeln fülle nur 'price' aus.
+4. GTIN/EAN: Suche nach GTIN, EAN oder eindeutigen Herstellernummern.
+5. ZAHLEN & EINHEITEN: Wenn ein Attribut den "ui_type": "number" hat, antworte AUSSCHLIESSLICH mit der nackten Zahl (Punkt als Komma).
+6. LIEFERANT / SHOP: Mit "supplier" ist zwingend der Name des Online-Shops gemeint (z.B. "zooplus", "Galaxus"). Leite diesen aus der URL ab.`,
             generationConfig: { 
                 responseMimeType: "application/json", 
-                temperature: 0.1 
+                // Temperature minimal erhöht, damit die KI bessere, flüssigere Texte schreibt
+                temperature: 0.2 
             }
         });
 
-        // --- OPTIMIERUNG 3: Aufgeräumter User-Prompt ---
         const prompt = `
 Hier sind die erwarteten Attribute, die du extrahieren sollst:
 ${JSON.stringify(expectedAttributes, null, 2)}
@@ -58,7 +72,7 @@ ${JSON.stringify(expectedAttributes, null, 2)}
 Erwartetes JSON-Format:
 {
     "title": "Sauberer Produktname",
-    "description": "Hilfreiche Beschreibung (max. 3 Sätze)",
+    "description": "Ausführliche und hilfreiche Beschreibung...",
     "supplier": "Name des Lieferanten/Shop",
     "gtin": "7611123456789",
     "price": 12.50,
@@ -78,12 +92,9 @@ ${finalTextToAnalyze}
         const result = await model.generateContent(prompt);
         let aiResponseText = result.response.text();
         
-        // --- OPTIMIERUNG 4: Sichereres Stripping ---
         aiResponseText = aiResponseText.replace(/^```json\n?/, '').replace(/\n?```$/, '').trim();
-        
         const extractedData = JSON.parse(aiResponseText);
         
-        // Relative URLs sicher auflösen mit Try-Catch
         if (extractedData.finalImageUrl && extractedData.finalImageUrl.startsWith('/')) {
             try {
                 const urlObj = new URL(url);

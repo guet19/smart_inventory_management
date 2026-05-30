@@ -82,12 +82,7 @@
 
 <style>
     /* Globales Body-Styling korrigiert: .body zu :global(body) geändert */
-    .body { 
-        font-family: 'Space Grotesk', sans-serif; 
-        color: #334155; 
-        margin: 0;
-        line-height: 1.6;
-    }
+   
 
     .page-wrapper {
         padding: 60px 20px; 
