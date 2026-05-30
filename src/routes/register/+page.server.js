@@ -2,10 +2,9 @@
 import { fail, redirect } from '@sveltejs/kit';
 import db from '$lib/server/db.js';
 import { sendVerificationEmail } from '$lib/server/email.js';
-import crypto from 'crypto'; 
+// ACHTUNG: Der 'crypto' Import wurde entfernt, da er Netlify zum Absturz bringen kann!
 
 export async function load({ cookies }) {
-    // Wenn man schon eingeloggt ist, braucht man sich nicht registrieren
     if (cookies.get('session')) {
         throw redirect(303, '/');
     }
@@ -15,7 +14,6 @@ export const actions = {
     default: async ({ request, url }) => {
         const data = await request.formData();
         
-        // 1. Alle Felder aus dem Formular auslesen (Hier haben sie gefehlt!)
         const email = data.get('email')?.toString().trim();
         const password = data.get('password')?.toString();
         const passwordConfirm = data.get('passwordConfirm')?.toString();
@@ -25,7 +23,6 @@ export const actions = {
         const country = data.get('country')?.toString().trim() || "";
         const birthDate = data.get('birthDate')?.toString() || null;
 
-        // 2. Basis-Validierung
         if (!email || !password || !firstName || !lastName) {
             return fail(400, { error: "Bitte fülle alle Pflichtfelder aus." });
         }
@@ -39,30 +36,32 @@ export const actions = {
         }
 
         try {
-            // 3. Sicherheitstoken und Code generieren
-            const vCode = Math.floor(100000 + Math.random() * 900000).toString(); // 6-stelliger Code
-            const vToken = crypto.randomUUID(); // Langer Magic Link Token
-            const vExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 Minuten gültig
+            // Nutzt jetzt die global verfügbare Web Crypto API (ohne Import)
+            const vCode = Math.floor(100000 + Math.random() * 900000).toString(); 
+            const vToken = crypto.randomUUID(); 
+            const vExpires = new Date(Date.now() + 15 * 60 * 1000); 
 
-            // 4. Daten-Pakete schnüren
             const verificationData = { code: vCode, token: vToken, expires: vExpires };
             const profileData = { firstName, lastName, country, birthDate };
 
-            // 5. Nutzer in MongoDB anlegen
             const result = await db.createInitialUser(email, password, profileData, verificationData);
             
             if (!result.success) {
-                return fail(400, { error: result.message }); // z.B. "Benutzer existiert bereits"
+                return fail(400, { error: result.message }); 
             }
 
-           // 6. E-Mail asynchron im Hintergrund versenden
-            await sendVerificationEmail(email, vCode, vToken);
+            // Sicherer Versuch, die E-Mail zu senden
+            try {
+                await sendVerificationEmail(email, vCode, vToken);
+            } catch (mailError) {
+                // Wenn die Mail fehlschlägt, loggen wir es sauber für Netlify, 
+                // lassen den Nutzer aber trotzdem ins System (da du ihn ja über den Login abfängst)
+                console.error("Mail-Versand nach Registrierung fehlgeschlagen:", mailError);
+            }
 
-            // 7. Zur Verifizierungs-Seite leiten (E-Mail in der URL übergeben)
             throw redirect(303, `/verify?email=${encodeURIComponent(email)}`);
 
         } catch (err) {
-            // Wichtig: Redirects werfen intern einen Fehler, den müssen wir durchlassen!
             if (err.status === 303) throw err;
             
             console.error("Fehler bei der Registrierung:", err);
