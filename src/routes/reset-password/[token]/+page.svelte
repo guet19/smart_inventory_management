@@ -47,10 +47,7 @@
 
 <style>
     /* Globales Styling für das Layout und den Hintergrund */
-    .body { 
-        font-family: 'Space Grotesk', sans-serif; 
-        margin: 0;
-    }
+    
 
     /* Karte zentrieren */
     .reset-container { 

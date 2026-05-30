@@ -1,67 +1,92 @@
 import { json } from '@sveltejs/kit';
 import * as cheerio from 'cheerio';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import { env } from '$env/dynamic/private';
 
 export async function POST({ request }) {
     try {
         const { html, url, expectedAttributes } = await request.json();
 
-        if (!html) return json({ error: 'Kein Text/HTML empfangen.' }, { status: 400 });
+        // --- DIAGNOSE LOGS START ---
+        console.log("\n====================================");
+        console.log("🚀 NEUER KI-IMPORT GESTARTET (MODERNES SDK)");
+        console.log("🔗 URL:", url || "KEINE URL ÜBERGEBEN");
+        console.log("📦 Länge Payload (html):", html ? html.length : "LEER");
+        console.log("📄 Erste 100 Zeichen Payload:", html ? html.substring(0, 100).replace(/\n/g, ' ') : "-");
+        console.log("====================================\n");
+        // --- DIAGNOSE LOGS ENDE ---
+
+        if (!html && !url) {
+            console.log("❌ Abbruch: Weder HTML noch URL empfangen.");
+            return json({ error: 'Keine Daten empfangen.' }, { status: 400 });
+        }
 
         if (!env.GEMINI_API_KEY) {
-            console.error("KRITISCHER FEHLER: GEMINI_API_KEY fehlt in den Server-Umgebungsvariablen!");
+            console.error("❌ KRITISCHER FEHLER: GEMINI_API_KEY fehlt in den Umgebungsvariablen (.env)!");
             return json({ error: 'API-Schlüssel fehlt auf dem Server.' }, { status: 500 });
         }
 
-        let contentToParse = html;
+        let contentToParse = "";
+        let useFallbackText = false;
+        let fallbackText = html || "";
 
-        // Wenn nur eine URL übergeben wird, versuchen wir sie zu laden (Achtung vor Bot-Sperren!)
-        if (html.trim().startsWith('http://') || html.trim().startsWith('https://')) {
+        // 1. VERSUCH: Echte Webseite im Backend herunterladen
+        if (url) {
             try {
-                const fetchRes = await fetch(html.trim());
+                console.log(`🌐 Versuche URL herunterzuladen...`);
+                const fetchRes = await fetch(url, {
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                        'Accept': 'text/html,application/xhtml+xml'
+                    }
+                });
+                
                 if (fetchRes.ok) {
                     contentToParse = await fetchRes.text();
+                    console.log(`✅ Download erfolgreich (${contentToParse.length} Zeichen geladen).`);
+                } else {
+                    console.warn(`⚠️ Fetch vom Shop blockiert (HTTP Status ${fetchRes.status}). Nutze stattdessen Bookmarklet-Daten.`);
+                    useFallbackText = true;
                 }
             } catch (e) {
-                console.error("Fehler beim Herunterladen der URL:", e);
+                console.warn(`⚠️ Fetch komplett fehlgeschlagen (${e.message}). Nutze stattdessen Bookmarklet-Daten.`);
+                useFallbackText = true;
+            }
+        } else {
+            contentToParse = fallbackText;
+            if (!contentToParse.includes('<html') && !contentToParse.includes('<body')) {
+                useFallbackText = true;
             }
         }
 
-        const $ = cheerio.load(contentToParse);
-        
-        let manualImageUrl = $('meta[property="og:image"]').attr('content') 
-                          || $('meta[name="twitter:image"]').attr('content')
-                          || $('img').not('header img, footer img, .icon img').first().attr('src');
+        let finalTextToAnalyze = "";
+        let manualImageUrl = "";
 
-        let jsonLdText = "";
-        $('script[type="application/ld+json"]').each((_, el) => {
-            jsonLdText += $(el).html() + " \n";
-        });
+        // 2. DATEN AUFBEREITEN
+        if (!useFallbackText && contentToParse) {
+            const $ = cheerio.load(contentToParse);
+            
+            manualImageUrl = $('meta[property="og:image"]').attr('content') 
+                            || $('meta[name="twitter:image"]').attr('content')
+                            || $('img').not('header img, footer img, .icon img').first().attr('src');
 
-        $('script, style, nav, footer, header, noscript, svg, iframe').remove();
-        const cleanText = $('body').text().replace(/\s+/g, ' ').trim().substring(0, 15000);
+            let jsonLdText = "";
+            $('script[type="application/ld+json"]').each((_, el) => {
+                jsonLdText += $(el).html() + " \n";
+            });
 
-        const finalTextToAnalyze = `Versteckte Shop-Daten (JSON-LD):\n${jsonLdText}\n\nSichtbarer Webseiten-Text:\n${cleanText}`;
+            $('script, style, nav, footer, header, noscript, svg, iframe').remove();
+            const cleanText = $('body').text().replace(/\s+/g, ' ').trim().substring(0, 15000);
 
-        const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
-        
-        const model = genAI.getGenerativeModel({ 
-            model: "gemini-1.5-flash",
-            systemInstruction: `Du bist ein technischer Daten-Extraktor. Extrahiere Produktdaten präzise im JSON-Format.
-REGELN:
-1. TITEL: Sauberer Artikelname. Keine Shop-Namen oder SEO-Begriffe.
-2. BESCHREIBUNG: Schreibe 2-4 informative Sätze basierend auf dem Text. Hebe Besonderheiten (z.B. Omega 3, zuckerfrei) hervor.
-3. PREIS & MENGE: Wenn es ein Multipack ist (z.B. '12 x 15g', '48 Stück'), rechne die Gesamtstückzahl aus und trage sie in 'packQuantity' ein. Den Gesamtpreis in 'totalPackPrice'. Bei Einzelartikeln nur 'price'.
-4. GTIN/EAN: Suche nach GTIN oder Herstellernummern.
-5. ZAHLEN: Bei "ui_type": "number" IMMER nur die nackte Zahl antworten (keine Einheiten!).
-6. LIEFERANT: Name des Online-Shops (aus der URL ableiten).
-GIB AUSSCHLIESSLICH DAS JSON ZURÜCK! Keine Begrüßung, keine Erklärungen.`,
-            generationConfig: { 
-                responseMimeType: "application/json", 
-                temperature: 0.1 // Wieder etwas strenger, um schnelle, saubere Antworten zu erzwingen
-            }
-        });
+            finalTextToAnalyze = `Versteckte Shop-Daten (JSON-LD):\n${jsonLdText}\n\nSichtbarer Webseiten-Text:\n${cleanText}`;
+            console.log("🧩 HTML sauber geparst. Sende aufbereitete Daten an Gemini...");
+        } else {
+            finalTextToAnalyze = `Extrahierte Bookmarklet-Daten:\n${fallbackText}`;
+            console.log("♻️ Nutze Bookmarklet-Fallback. Sende Kurz-Text an Gemini...");
+        }
+
+        // 3. KI AUFRUF (Neues `@google/genai` SDK v1)
+        const ai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
 
         const prompt = `
 Hier sind die erwarteten Attribute, die du extrahieren sollst:
@@ -85,12 +110,35 @@ Inhalt:
 ${finalTextToAnalyze}
         `;
 
-        const result = await model.generateContent(prompt);
-        let aiResponseText = result.response.text();
+        console.log("🤖 Sende Anfrage an gemini-2.5-flash...");
+        const result = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: {
+                systemInstruction: `Du bist ein technischer Daten-Extraktor. Extrahiere Produktdaten präzise im JSON-Format.
+REGELN:
+1. TITEL: Sauberer Artikelname. Keine Shop-Namen oder SEO-Begriffe.
+2. BESCHREIBUNG: Schreibe 2-4 informative Sätze basierend auf dem Text. Hebe Besonderheiten hervor.
+3. PREIS & MENGE: Wenn es ein Multipack ist (z.B. '12 x 15g'), rechne die Gesamtstückzahl aus und trage sie in 'packQuantity' ein. Den Gesamtpreis in 'totalPackPrice'. Bei Einzelartikeln nur 'price'.
+4. GTIN/EAN: Suche nach GTIN oder Herstellernummern.
+5. ZAHLEN: Bei "ui_type": "number" IMMER nur die nackte Zahl antworten (keine Einheiten!).
+6. LIEFERANT: Name des Online-Shops (aus der URL ableiten).
+GIB AUSSCHLIESSLICH DAS JSON ZURÜCK! Keine Begrüßung, keine Erklärungen.`,
+                responseMimeType: "application/json",
+                temperature: 0.1
+            }
+        });
+
+        let aiResponseText = result.text;
         
-        // DER KUGELSICHERE FIX: Wir filtern alles heraus, was nicht in den geschweiften Klammern steht!
+        // --- DIAGNOSE LOGS KI ANTWORT ---
+        console.log("\n🤖 KI ANTWORT (Rohdaten):");
+        console.log(aiResponseText);
+        console.log("====================================\n");
+
         const match = aiResponseText.match(/\{[\s\S]*\}/);
         if (!match) {
+            console.error("❌ Fehler: KI hat kein gültiges JSON-Objekt generiert!");
             throw new Error("KI hat kein gültiges JSON-Objekt zurückgegeben.");
         }
         
@@ -101,14 +149,15 @@ ${finalTextToAnalyze}
                 const urlObj = new URL(url);
                 extractedData.finalImageUrl = `${urlObj.origin}${extractedData.finalImageUrl}`;
             } catch (e) {
-                console.warn("Konnte Basis-URL nicht parsen:", url);
+                console.warn("⚠️ Konnte Basis-URL für das Bild nicht parsen:", url);
             }
         }
         
+        console.log("✅ Extraktion erfolgreich abgeschlossen. Daten gehen ans Frontend!");
         return json(extractedData);
 
     } catch (error) {
-        console.error("Fehler im Backend bei KI-Extraktion:", error);
-        return json({ error: 'Fehler beim Analysieren der Artikeldaten' }, { status: 500 });
+        console.error("❌ FATALER FEHLER IM BACKEND:", error);
+        return json({ error: 'Fehler beim Analysieren der Artikeldaten', details: error.message }, { status: 500 });
     }
 }
