@@ -16,6 +16,7 @@ export async function POST({ request }) {
 
         let contentToParse = html;
 
+        // Wenn nur eine URL übergeben wird, versuchen wir sie zu laden (Achtung vor Bot-Sperren!)
         if (html.trim().startsWith('http://') || html.trim().startsWith('https://')) {
             try {
                 const fetchRes = await fetch(html.trim());
@@ -45,23 +46,20 @@ export async function POST({ request }) {
 
         const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
         
-        // --- HIER WURDEN DIE REGELN FÜR DIE KI OPTIMIERT ---
         const model = genAI.getGenerativeModel({ 
             model: "gemini-1.5-flash",
-            systemInstruction: `Du bist ein technischer Daten-Extraktor für das lokale Lagermanagement-System "Sortify". 
-Deine primäre Aufgabe ist es, Produktdaten präzise im JSON-Format zu extrahieren.
-
-WICHTIGE REGELN:
-1. TITEL: Generiere einen sauberen, professionellen Artikelnamen. Entferne zwingend alle Shop-Namen und SEO-Begriffe.
-2. BESCHREIBUNG: Schreibe eine informative, ausführliche und ansprechende Zusammenfassung (ca. 3-5 Sätze). Nutze die gelieferten Shop-Texte, um die wichtigsten Eigenschaften (z.B. Inhaltsstoffe, Besonderheiten, Funktionen) hervorzuheben. Zu kurze Einzeiler sind verboten!
-3. PREIS & MENGE (SEHR WICHTIG): Suche extrem genau nach dem Preis (z.B. CHF, Fr., EUR). Wenn es ein Multipack, Mix oder Sparpaket ist (z.B. '12 x 15g' oder 'Mix 1: 48 Stück'), rechne die absolute Gesamtstückzahl aus und trage sie in 'packQuantity' ein. Den gefundenen Gesamtpreis trägst du in 'totalPackPrice' ein. Bei reinen Einzelartikeln fülle nur 'price' aus.
-4. GTIN/EAN: Suche nach GTIN, EAN oder eindeutigen Herstellernummern.
-5. ZAHLEN & EINHEITEN: Wenn ein Attribut den "ui_type": "number" hat, antworte AUSSCHLIESSLICH mit der nackten Zahl (Punkt als Komma).
-6. LIEFERANT / SHOP: Mit "supplier" ist zwingend der Name des Online-Shops gemeint (z.B. "zooplus", "Galaxus"). Leite diesen aus der URL ab.`,
+            systemInstruction: `Du bist ein technischer Daten-Extraktor. Extrahiere Produktdaten präzise im JSON-Format.
+REGELN:
+1. TITEL: Sauberer Artikelname. Keine Shop-Namen oder SEO-Begriffe.
+2. BESCHREIBUNG: Schreibe 2-4 informative Sätze basierend auf dem Text. Hebe Besonderheiten (z.B. Omega 3, zuckerfrei) hervor.
+3. PREIS & MENGE: Wenn es ein Multipack ist (z.B. '12 x 15g', '48 Stück'), rechne die Gesamtstückzahl aus und trage sie in 'packQuantity' ein. Den Gesamtpreis in 'totalPackPrice'. Bei Einzelartikeln nur 'price'.
+4. GTIN/EAN: Suche nach GTIN oder Herstellernummern.
+5. ZAHLEN: Bei "ui_type": "number" IMMER nur die nackte Zahl antworten (keine Einheiten!).
+6. LIEFERANT: Name des Online-Shops (aus der URL ableiten).
+GIB AUSSCHLIESSLICH DAS JSON ZURÜCK! Keine Begrüßung, keine Erklärungen.`,
             generationConfig: { 
                 responseMimeType: "application/json", 
-                // Temperature minimal erhöht, damit die KI bessere, flüssigere Texte schreibt
-                temperature: 0.2 
+                temperature: 0.1 // Wieder etwas strenger, um schnelle, saubere Antworten zu erzwingen
             }
         });
 
@@ -71,36 +69,39 @@ ${JSON.stringify(expectedAttributes, null, 2)}
 
 Erwartetes JSON-Format:
 {
-    "title": "Sauberer Produktname",
-    "description": "Ausführliche und hilfreiche Beschreibung...",
-    "supplier": "Name des Lieferanten/Shop",
+    "title": "Produktname",
+    "description": "Zusammenfassung...",
+    "supplier": "Shopname",
     "gtin": "7611123456789",
     "price": 12.50,
     "totalPackPrice": null,
     "packQuantity": null,
-    "specs": {
-        "ID_DES_ATTRIBUTS": "Gefundener Wert"
-    },
+    "specs": { "ID": "Wert" },
     "finalImageUrl": "${manualImageUrl || ''}" 
 }
 
 URL: ${url}
-Zu analysierender Inhalt:
+Inhalt:
 ${finalTextToAnalyze}
         `;
 
         const result = await model.generateContent(prompt);
         let aiResponseText = result.response.text();
         
-        aiResponseText = aiResponseText.replace(/^```json\n?/, '').replace(/\n?```$/, '').trim();
-        const extractedData = JSON.parse(aiResponseText);
+        // DER KUGELSICHERE FIX: Wir filtern alles heraus, was nicht in den geschweiften Klammern steht!
+        const match = aiResponseText.match(/\{[\s\S]*\}/);
+        if (!match) {
+            throw new Error("KI hat kein gültiges JSON-Objekt zurückgegeben.");
+        }
+        
+        const extractedData = JSON.parse(match[0]);
         
         if (extractedData.finalImageUrl && extractedData.finalImageUrl.startsWith('/')) {
             try {
                 const urlObj = new URL(url);
                 extractedData.finalImageUrl = `${urlObj.origin}${extractedData.finalImageUrl}`;
             } catch (e) {
-                console.warn("Konnte Basis-URL nicht für das Bild parsen:", url);
+                console.warn("Konnte Basis-URL nicht parsen:", url);
             }
         }
         
