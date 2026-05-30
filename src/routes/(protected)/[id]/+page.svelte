@@ -40,8 +40,8 @@
     let stockUpdateSuccess = false;
 
     // Synchronisiere, falls sich die Daten vom Server ändern (nach dem Speichern)
-    $: if (article.istBestand !== originalStock) {
-        originalStock = article.istBestand || 0;
+    $: if (data.article.istBestand !== originalStock) {
+        originalStock = data.article.istBestand || 0;
         localStock = originalStock;
     }
 </script>
@@ -103,15 +103,23 @@
                     <form method="POST" action="?/updateStock" class="stock-form" 
                         use:enhance={() => {
                             isUpdatingStock = true;
+                            
                             return async ({ result, update }) => {
+                                isUpdatingStock = false;
+                                
                                 if (result.type === 'success') {
                                     stockUpdateSuccess = true;
                                     setTimeout(() => stockUpdateSuccess = false, 2500);
+                                    
+                                    // SvelteKit-Reset verhindern, aber DB-Daten neu laden
+                                    await update({ reset: false });
+                                } else {
+                                    // Bei einem Fehler normales Update ausführen
+                                    await update();
                                 }
-                                isUpdatingStock = false;
-                                await update();
                             };
                         }}>
+                        
                         <input type="hidden" name="articleId" value={article._id} />
                         
                         <div class="stock-controls">

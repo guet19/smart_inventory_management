@@ -184,7 +184,7 @@
                 return async ({ result, update }) => {
                   await update();
                   if (result.type === "success") {
-                    successMessage = `Attribut "${editLabel}" erfolgreich aktualisiert!`;
+                    successMessage = `Attribut erfolgreich aktualisiert!`;
                     closeEditMode();
                     setTimeout(() => {
                       successMessage = "";
@@ -336,7 +336,7 @@
               return async ({ result, update }) => {
                 await update();
                 if (result.type === "success") {
-                  successMessage = `Attribut "${label}" erfolgreich angelegt!`;
+                  successMessage = `Attribut erfolgreich angelegt!`;
                   label = "";
                   unit = "";
                   optionsList = [];
@@ -523,7 +523,7 @@
                           return async ({ result, update }) => {
                             await update(); 
                             if (result.type === "success") {
-                              successMessage = `Attribut "${deletedLabel}" erfolgreich gelöscht!`;
+                              successMessage = `Attribut erfolgreich gelöscht!`;
                               setTimeout(() => { successMessage = ""; }, 3500);
                             }
                           };

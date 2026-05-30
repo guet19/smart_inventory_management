@@ -23,15 +23,15 @@
 
 ## 1. Ausgangslage
 <!-- Kurz beschreiben, welches Problem adressiert wird und welches Ergebnis angestrebt ist. Wem nützt die Lösung, wer ist beteiligt oder betroffen?-->
-- **Problem:** _Die Lagerung von Kleinteilen (Schrauben, Muttern,Elektrotechnikbauteilen usw.) ist in privaten Werkstätten und kleinen Betrieben oft sehr unübersichtlich und eine Herausforderung. Die Suche nach dem passenden Teil kostet viel Zeit und die Lagerhaltung wird oft vernachlässigt, da es von Hand sehr zeitaufwendig (ständig neue Beschriftung der einzelnen Fächer mit Artikelbezeichnung, Zählen des Bestands usw.) und fehleranfällig ist. Dies führt oft zu dem frustrierenden Moment, dass essenzielle Teile (z. B. eine spezifische M3-Schraube) genau dann fehlen, wenn sie mitten in einem Projekt dringend benötigt werden. Ebenso führt es zu Fehlkäufen, da man bereits vorhandenes Verbrauchsmaterial im Baumarkt erneut kauft, obwohl man diese bereits auf Lager hat._
+- **Problem:** _Die Lagerung von Kleinteilen (Schrauben, Muttern,Elektrotechnikbauteilen usw.) ist in privaten Werkstätten und kleinen Betrieben oft sehr unübersichtlich und eine Herausforderung. Die Suche nach dem passenden Teil kostet viel Zeit und die Lagerhaltung wird oft vernachlässigt, da es von Hand sehr zeitaufwendig (ständig neue Beschriftung der einzelnen Fächer mit Artikelbezeichnung, Zählen des Bestands usw.) und fehleranfällig ist. Dies führt oft zu dem frustrierenden Moment, dass benötigte Teile (z. B. eine spezifische M3-Schraube) genau dann fehlen, wenn sie mitten in einem Projekt dringend benötigt werden. Ebenso führt es zu Fehlkäufen, da man bereits vorhandenes Verbrauchsmaterial zur "Sicherheit" im Baumarkt erneut kauft, obwohl man diese bereits auf Lager hat._
 - **Ziele:** 
     - Verkürzung der Suchzeit durch  visuelle Führung (Pick-by-Light) und passende Filteroptionen durch Benutzeroberfläche.
 
     - Reduzierung von Fehlkäufen durch transparente Bestandsübersicht, welche über das Internet erreichbar ist.
 
-    - Vollständige Automatisierung der Bestandskontrolle nach der Entnahme (z. B. durch sensorgestützte Gewichtsmessung) über GPIO Pins von Arduino.
+    - Vollständige Automatisierung der Bestandskontrolle nach der Entnahme (z. B. durch sensorgestützte Gewichtsmessung) über GPIO Pins des Raspberry Pi.
 
-    - Automatisierten Errinnerungssystem, das bei Unterschreitung von Mindestbeständen per Mail zum Nachkauf auffordert.
+    - Automatisiertes Errinnerungssystem, das bei Unterschreitung von Mindestbeständen per Mail zum Nachkauf auffordert.
 
     - Verhindern von ständigem kompliziertem Beschriften der Fächer, nach Änderung des Inhalts.
 
@@ -45,24 +45,24 @@
 - **Kernfunktionalität:** 
   - **Suchen & Finden:** Nutzer filtern in der SvelteKit-Web-App nach Attributen (z. B. M3-Schraube, 20mm Länge). Nach der Auswahl sendet die App ein Signal an einen Raspberry Pi, der die LED am entsprechenden Fach im Regal aufleuchten lässt (Pick-by-Light).
 
-  - **Automatisierte Bestandsführung:** Nach der Entnahme wird das Fach auf eine mit einem Raspberry Pi verbundene Waage gestellt und der Barcode mit dem Scanner abgescannt. Das System berechnet anhand des Gewichts und des Barcodes automatisch die Restmenge und aktualisiert den Bestand in der Datenbank.
+  - **Automatisierte Bestandsführung:** Nach der Entnahme wird das Fach auf eine mit einem Raspberry Pi verbundene Waage gestellt und der Barcode mit dem Scanner abgescannt (evtl. auch Möglichkeit für einen NFC Chip mit NFC-Leser). Das System berechnet anhand des einzelnen Artikelgewichts, des Leergewichts des Fachs und dem Gesamtgewicht automatisch die Restmenge und aktualisiert den Bestand in der Datenbank.
 
   - **Intelligente Benachrichtigung:** Das System prüft den Bestand gegen einen hinterlegten Mindestwert. Bei Unterschreitung wird automatisch eine E-Mail mit einem direkten Nachkauf-Link an den Besitzer versendet.
 
   - **Mobiler Datenzugriff (Projektarbeit):** Da die Anwendung online zugänglich ist, kann der aktuelle Lagerbestand jederzeit von unterwegs (z. B. im Baumarkt) eingesehen werden.
     - **Aufrufen des Inventars** durch Filterung nach Kategorien und Unterkategorien, sowie Suchfeld inkl. Detailanzeige.
 
-    - **Bestellen** Filterung der Artikel nach diversen Kriterien (ordnen nach Artikelart, Bestand)
-		Ausgabe von einer Liste mit Bestelllink
-		Anzeigen der Bestelllinks
-    Als bestellt vermerken um auf der "In Bestellung" Liste angezeigt zu werden.
+    - **Bestellen** Filterung der Artikel nach diversen Kriterien (z.B. Bestand) und erstellen einer Bestellliste
+    Möglichkeit um Artikel als bestellt zu vermerken damit diese auf der "In Bestellung" Liste angezeigt zu werden und Informationen wie "In Bestellung" + "Bestellmenge", "Bestellstatus" und "Bestelldatum" in der Datenbank hinterlegt werden und die Infos auf der Produktseite angezeigt werden.
 
     - **In Bestellung**	Anzeige der ausstehenden Lieferungen,
 		Bestätigung nach Erhalt inkl. Aktualisierung des Bestands (Anpassung der Bestellmenge möglich)
 
-    - **Kategorien verwalten** Verwalten der Attribute je Kategorie, Attribute können pro Kategorie hinzugefügt, bearbeitet und gelöscht werden. Diese dienen dann als Vorlage für "Artikel hinzufügen" und wird für die Filteroptionen verwendet.
+    - **Kategorien verwalten** Verwalten der Attribute (Filtermöglichkeiten) je Kategorie, Attribute können pro Kategorie hinzugefügt, bearbeitet und gelöscht werden. Diese dienen dann als Vorlage für "Artikel hinzufügen" und werden für die Filteroptionen verwendet.
 
-    - **Artikel hinzufügen** Auswahl der Kategorie, Angabe der Artikeldetails, Angabe des Mindestbestands, (Angabe des Lagerorts), Angabe des Bestelllinks, (Angabe des Gewichts pro Stück).
+    - **Artikel hinzufügen** Auswahl der Kategorie, Bildimport, Angabe der Artikeldetails/Spezifikationen, EAN/GTIN, Angabe des Mindestbestands, Angabe des Bestelllinks
+    <br>
+    <span style ="color:red"> Abgrenzung:(Angabe des Lagerfachs),(Angabe des Gewichts pro Stück), (Angabe des Fach Nettogewichts) </span>
 
     
     
@@ -70,13 +70,8 @@
     - _Die visuelle Führung mittels LEDs reduziert die Suchzeit im Vergleich zu herkömmlichen Beschriftungen signifikant._
     - _Die automatisierte Bestandsführung mittels Waage ist präzise genug, um die Bestandsmenge zuverlässig zu erfassen._
 
-- **Abgrenzung:** _Innerhalb des Projekts wird nur die Software für die Webanwendung für den mobilen Datenzugriff auf den Lagerbestand entwickelt. Die weiteren technischen Komponenten wie die Hardware (Raspberry Pi, Waage, LEDs, Scanner), sowie die Software für den Raspberry PI zum Hinzufügen und Entfernen von Artikeln werden innerhalb dieses Projekts nicht entwickelt._
-
-<!-- Stand 17.04.2026 --> 
-
-
-
-
+- **Abgrenzung:** 
+    - Innerhalb des Projekts wird nur die Software für die Webanwendung für den mobilen Datenzugriff auf den Lagerbestand entwickelt. Die weiteren technischen Komponenten wie die Hardware (Raspberry Pi, Waage, LEDs, Scanner), sowie die Software für den Raspberry PI zum Hinzufügen und Entfernen von Artikeln werden innerhalb dieses Projekts nicht entwickelt.
 
 
 

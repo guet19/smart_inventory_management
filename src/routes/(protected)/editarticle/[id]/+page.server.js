@@ -1,59 +1,62 @@
-// src/routes/(protected)/editarticle/[id]/+page.server.js
 import db from '$lib/server/db.js';
-import { error, redirect } from '@sveltejs/kit';
-import { writeFileSync, unlinkSync, existsSync } from 'fs';
-import path from 'path';
+import { error, redirect, fail } from '@sveltejs/kit';
+import { ObjectId } from 'mongodb';
+import { v2 as cloudinary } from 'cloudinary';
+import { 
+    CLOUDINARY_CLOUD_NAME, 
+    CLOUDINARY_API_KEY, 
+    CLOUDINARY_API_SECRET 
+} from '$env/static/private';
+
+// Cloudinary konfigurieren
+cloudinary.config({
+    cloud_name: CLOUDINARY_CLOUD_NAME,
+    api_key: CLOUDINARY_API_KEY,
+    api_secret: CLOUDINARY_API_SECRET
+});
 
 export async function load({ params, cookies }) {
-    // 1. Nutzer identifizieren
     const userId = cookies.get('session');
     if (!userId) {
         throw error(401, 'Nicht autorisiert');
     }
 
     const articleId = params.id;
-
-    // 2. Artikel mit Sicherheitscheck (userId) aus der DB holen
     const article = await db.getArticleById(userId, articleId);
 
-    // 3. Fehlerbehandlung: Wenn es die ID nicht gibt oder sie nicht dem User gehört
     if (!article) {
-        throw error(404, {
-            message: 'Dieser Artikel wurde nicht gefunden oder du hast keinen Zugriff darauf.'
-        });
+        throw error(404, { message: 'Dieser Artikel wurde nicht gefunden oder du hast keinen Zugriff darauf.' });
     }
 
-    // 4. Metadaten für die Dropdowns laden (ebenfalls gefiltert!)
     const categories = await db.getCategories(userId);
     const attributes = await db.getFilterAttributes(userId);
 
     return {
-        article: JSON.parse(JSON.stringify(article)),
-        categories: JSON.parse(JSON.stringify(categories)),
-        attributes: JSON.parse(JSON.stringify(attributes))
+        article, // (SvelteKit-Tipp: Wenn db.js saubere Strings liefert, brauchst du hier kein JSON.parse mehr)
+        categories,
+        attributes
     };
 }
 
 export const actions = {
     update: async ({ request, params, cookies }) => {
-        // Sicherheitscheck
         const userId = cookies.get('session');
-        if (!userId) return { error: "Nicht autorisiert" };
+        if (!userId) return fail(401, { error: "Nicht autorisiert" });
 
         const formData = await request.formData();
         const articleId = params.id;
         
-        // Alten Artikel prüfen (Gehört er dem User?)
         const oldArticle = await db.getArticleById(userId, articleId);
         if (!oldArticle) {
-            return { error: "Artikel nicht gefunden oder Zugriff verweigert." };
+            return fail(403, { error: "Artikel nicht gefunden oder Zugriff verweigert." });
         }
 
-        // Standard-Daten aus dem Formular auslesen
+        // --- DATEN AUFBEREITEN ---
         let updateData = {
             title: formData.get("title")?.toString().trim() || "",
             description: formData.get("description")?.toString().trim() || "",
-            mainCategoryId: formData.get("mainCategoryId")?.toString() || "",
+            // WICHTIG: Die Kategorie-ID muss wieder eine ObjectId werden!
+            mainCategoryId: formData.get("mainCategoryId") ? new ObjectId(formData.get("mainCategoryId").toString()) : null,
             subcategoryId: formData.get("subcategoryId")?.toString() || "",
             supplier: formData.get("supplier")?.toString().trim() || "",
             gtin: formData.get("gtin")?.toString().trim() || "",
@@ -61,7 +64,6 @@ export const actions = {
             updatedAt: new Date()
         };
 
-        // Zahlen sicher parsen
         const priceStr = formData.get("price");
         updateData.price = priceStr ? parseFloat(priceStr) : null;
 
@@ -74,7 +76,6 @@ export const actions = {
         const mindestBestandStr = formData.get("mindestBestand");
         updateData.mindestBestand = mindestBestandStr ? parseInt(mindestBestandStr, 10) : null;
 
-        // Dynamische Spezifikationen auslesen (alle Keys, die mit "attr_" beginnen)
         const attributesMap = {};
         for (const [key, value] of formData.entries()) {
             if (key.startsWith("attr_")) {
@@ -85,74 +86,68 @@ export const actions = {
         }
         updateData.attributes = attributesMap;
 
-        // --- BILDVERARBEITUNG ---
+        // --- BILDVERARBEITUNG (Cloudinary) ---
+        let finalImagePath = oldArticle.imagePath; // Standardmäßig das alte Bild behalten
+        
         const removeExistingImage = formData.get("removeExistingImage") === "true";
         const newImageFile = formData.get("image");
 
-        if ((removeExistingImage || (newImageFile && newImageFile.size > 0)) && oldArticle.imagePath) {
-            try {
-                const oldFilePath = path.join(process.cwd(), 'static', oldArticle.imagePath);
-                if (existsSync(oldFilePath)) {
-                    unlinkSync(oldFilePath);
-                }
-            } catch (e) {
-                console.error("Altes Bild konnte nicht physisch gelöscht werden:", e);
-            }
-            updateData.imagePath = null;
+        // 1. Wenn Nutzer das Bild explizit löscht
+        if (removeExistingImage) {
+            finalImagePath = null;
         }
 
-        if (newImageFile && newImageFile.size > 0 && newImageFile.name !== 'undefined') {
-            const fileName = `${Date.now()}_${Math.round(Math.random() * 1000)}.jpg`;
-            const filePath = path.join(process.cwd(), 'static', 'uploads', fileName);
+        // 2. Wenn ein neues Bild hochgeladen wird (Stream zu Cloudinary)
+        if (newImageFile && newImageFile instanceof Blob && newImageFile.size > 0) {
+            const arrayBuffer = await newImageFile.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
             
-            const buffer = Buffer.from(await newImageFile.arrayBuffer());
-            writeFileSync(filePath, buffer);
+            const uploadResult = await new Promise((resolve, reject) => {
+                const uploadStream = cloudinary.uploader.upload_stream(
+                    { folder: 'storify_uploads', allowed_formats: ['jpg', 'png', 'webp'] },
+                    (error, result) => {
+                        if (error) return reject(error);
+                        resolve(result);
+                    }
+                );
+                uploadStream.end(buffer);
+            });
             
-            updateData.imagePath = `/uploads/${fileName}`;
+            finalImagePath = uploadResult.secure_url;
         }
 
-        // Update in der DB (Sicherheitscheck passiert in db.js via userId)
+        updateData.imagePath = finalImagePath;
+
+        // --- UPDATE IN DATENBANK ---
         try {
             await db.updateArticle(userId, articleId, updateData);
             return { success: true };
         } catch (err) {
             console.error("Datenbank Update-Fehler:", err);
-            return { error: "Fehler beim Speichern der Änderungen in der Datenbank." };
+            return fail(500, { error: "Fehler beim Speichern der Änderungen in der Datenbank." });
         }
     },
 
     delete: async ({ params, cookies }) => {
-        // Sicherheitscheck
         const userId = cookies.get('session');
-        if (!userId) return { error: "Nicht autorisiert" };
+        if (!userId) return fail(401, { error: "Nicht autorisiert" });
 
         const articleId = params.id;
         
-        // Zuerst prüfen, ob der Nutzer diesen Artikel überhaupt löschen darf
         const oldArticle = await db.getArticleById(userId, articleId);
         if (!oldArticle) {
-            return { error: "Artikel nicht gefunden oder Zugriff verweigert." };
+            return fail(403, { error: "Artikel nicht gefunden oder Zugriff verweigert." });
         }
 
-        // Bild vom Server aufräumen
-        if (oldArticle.imagePath) {
-            try {
-                const oldFilePath = path.join(process.cwd(), 'static', oldArticle.imagePath);
-                if (existsSync(oldFilePath)) {
-                    unlinkSync(oldFilePath);
-                }
-            } catch (e) {
-                console.error("Bild konnte beim Löschen des Artikels nicht entfernt werden:", e);
-            }
-        }
+        // HINWEIS: Wir löschen das Bild hier nicht mehr physisch per fs.unlinkSync.
+        // Das Bild bleibt vorerst als "Waisenkind" auf Cloudinary liegen. 
+        // Für eine kostenlose App reicht das völlig aus, da Cloudinary großzügige Limits hat.
 
         try {
-            // ACHTUNG: Die db.deleteArticle Funktion fehlt bisher noch in deiner db.js!
-            // Du musst sie dort noch ergänzen (siehe Block unten)
             await db.deleteArticle(userId, articleId); 
         } catch (err) {
             console.error("Fehler beim Löschen des Artikels:", err);
-            return { error: "Fehler beim Löschen." };
+            return fail(500, { error: "Fehler beim Löschen." });
         }
 
         throw redirect(303, "/");

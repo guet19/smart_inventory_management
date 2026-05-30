@@ -2,7 +2,8 @@
     import { onDestroy, tick } from "svelte";
     import { browser } from "$app/environment";
     import { enhance } from "$app/forms";
-    import { goto } from "$app/navigation"; 
+    import { goto } from "$app/navigation";
+    import SearchableSelect from "$lib/components/SearchableSelect.svelte";
 
     import "cropperjs/dist/cropper.css";
     import Cropper from "cropperjs";
