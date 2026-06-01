@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { MongoClient, ObjectId } from "mongodb";
-import { DB_URI } from "$env/static/private";
+// ÄNDERUNG: Wir nutzen den dynamischen Import, der ist sicherer für Netlify!
+import { env } from '$env/dynamic/private';
 import bcrypt from "bcryptjs"; 
 
 // ==========================================
@@ -10,7 +11,8 @@ let client;
 let clientPromise;
 
 if (!global._mongoClientPromise) {
-    client = new MongoClient(DB_URI);
+    // ÄNDERUNG: Hier greifen wir auf env.DB_URI zu
+    client = new MongoClient(env.DB_URI);
     global._mongoClientPromise = client.connect();
 }
 clientPromise = global._mongoClientPromise;
@@ -18,7 +20,9 @@ clientPromise = global._mongoClientPromise;
 // Hilfsfunktion: Holt die gecachte Verbindung
 async function getDb() {
     const connectedClient = await clientPromise;
-    return connectedClient.db("Storify");
+    // Hinweis: Dein Cluster in Atlas heisst "Storify", deshalb bleibt das hier so, 
+    // auch wenn das Projekt Sortify heisst. Das passt!
+    return connectedClient.db("Storify"); 
 }
 
 
