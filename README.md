@@ -256,27 +256,29 @@ Die Anwendung trennt strikt zwischen öffentlichen Bereichen und geschützten Be
   Beinhaltet die Hauptkategorien mit den zugehörigen Unterkategorien (inkl. Filteroptionen)Erfassungszeit sowie den zugehörigen User.
 
     <img src="./static/images/readme/categories.png" alt="Beschreibung" width="30%">
+
   - **filter_attributes:**
    <br>
   Beinhaltet die Filteroptionen mit den zugehörigen Auswahloptionen, Einheit, ui_type (Zahl, Text, Dropdown) sowie den zugehörigen User.
 
     <img src="./static/images/readme/filter_attributes.png" alt="Beschreibung" width="30%">
+
   - **loginAttempts**
    <br>
-Zeichnet bei einer fehlerhaften Login Eingabe die externe IP-Adresse auf. Bei 5 Fehlversuchen wird der Login für 5 Minuten blockiert. Sobald korrekt eingeloggt wird, wird die Protokollierung gelöscht.
+  Zeichnet bei einer fehlerhaften Login Eingabe die externe IP-Adresse auf. Bei 5 Fehlversuchen wird der Login für 5 Minuten blockiert. Sobald korrekt eingeloggt wird, wird die Protokollierung gelöscht.
 
     <img src="./static/images/readme/loginAttempts.png" alt="Beschreibung" width="30%">
 
   - **sessionLogs**
    <br>
-Zeichnet die Sessions der einzelnen User auf, indem die UserId, E-Mail, Login Zeit und Logout Zeit (insofern ausgeloggt wird) gespeichert wird. Die Daten werden nach 3 Tagen durch einen definierten Prozess in Mongo DB automatisch gelöscht. 
+  Zeichnet die Sessions der einzelnen User auf, indem die UserId, E-Mail, Login Zeit und Logout Zeit (insofern ausgeloggt wird) gespeichert wird. Die Daten werden nach 3 Tagen durch einen definierten Prozess in Mongo DB automatisch gelöscht. 
 
     <img src="static/images/readme/sessionLogs.png" alt="Beschreibung" width="30%">
   
   - **users**
   <br>
-Beinhaltet die verschiedenen Benutzer, welche sich registriert haben inkl. E-Mail, Passwort (gehasht), Vorname, Nachname, Land (optional), Geburtsdatum (optional), Erstellungsdatum und Verifizierungsstatus.
-Wenn ein Nutzer sich neu registriert, wird hier ebenfalls der Verifizierungscode und der Ablaufzeitpunkt des Verifizierungscodes gespeichert.
+  Beinhaltet die verschiedenen Benutzer, welche sich registriert haben inkl. E-Mail, Passwort (gehasht), Vorname, Nachname, Land (optional), Geburtsdatum (optional), Erstellungsdatum und Verifizierungsstatus.
+  Wenn ein Nutzer sich neu registriert, wird hier ebenfalls der Verifizierungscode und der Ablaufzeitpunkt des Verifizierungscodes gespeichert.
 
     <img src="./static/images/readme/users.png" alt="Beschreibung" width="30%">
 
@@ -292,10 +294,14 @@ Wenn ein Nutzer sich neu registriert, wird hier ebenfalls der Verifizierungscode
 - **Bilder der getesteten Version**
 
     <img src="./static/images/readme/Validation_1.png" alt="Beschreibung" width="80%">
+
      <img src="./static/images/readme/Validation_2.png" alt="Beschreibung" width="80%">
+
       <img src="./static/images/readme/Validation_3.png" alt="Beschreibung" width="80%">
+
        <img src="./static/images/readme/Validation_4.png" alt="Beschreibung" width="80%">
-        <img src="./static/images/readme/Validation_5.png" alt="Beschreibung" width="80%">
+
+       <img src="./static/images/readme/Validation_5.png" alt="Beschreibung" width="80%">
 
 
 - **Ziele der Prüfung:** 
