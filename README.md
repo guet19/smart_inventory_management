@@ -206,6 +206,7 @@ Professionelle Systeme aus der Grossindustrie (wie teure Pick-by-Light- oder RFI
 
 **Tooling:** 
   - Versionskontrolle: GitHub
+  erreichbar unter: https://github.com/guet19/smart_inventory_management
 
 **Struktur & Komponenten:**
 
