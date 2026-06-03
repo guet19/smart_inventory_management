@@ -43,7 +43,7 @@ _Kleinbetriebe, Shared-Workspaces, Lieferanten, Baumärkte_
 
 ## 2. Lösungsidee
 
-<img src="static/images/readme/KI_Picture.png" alt="Beschreibung" width="80%">
+<img src="./static/images/readme/KI_Picture.png" alt="Beschreibung" width="80%">
 
 Gemini KI-Bild als Veranschaulichung 
 
@@ -127,9 +127,9 @@ Professionelle Systeme aus der Grossindustrie (wie teure Pick-by-Light- oder RFI
 ### 3.2 Sketch
  **Variantenüberblick:** Um Lösungsansätze für die Hauptfunktion, also die intuitive Suchmaske und die Artikelfilterung zu sammeln, wurde die Kreativitätsmethode *Crazy 8s* angewendet.
  
-<img src="static/images/readme/Crazy_8s_1.png" alt="Beschreibung" width="80%">
+<img src="./static/images/readme/Crazy_8s_1.png" alt="Beschreibung" width="80%">
 
-<img src="static/images/readme/Crazy_8s_2.png" alt="Beschreibung" width="80%">
+<img src="./static/images/readme/Crazy_8s_2.png" alt="Beschreibung" width="80%">
 
  **Kommentare von Simeon und Samet zu den verschiedenen Varianten (ausserhalb Unterricht):**
   - **Positiv:** Am besten wurde die Variante unten links auf dem ersten Bild bewertet, da diese laut den beiden Kommentaren, die beste Bedienerfreundlichkeit und Anpassungsmöglichkeit mit Filtern, Suchen, sowie Produktübersicht bietet. 
@@ -139,7 +139,7 @@ Professionelle Systeme aus der Grossindustrie (wie teure Pick-by-Light- oder RFI
   - Am Ende entschied ich mich für den Favoriten von Simeon und Samet. Die Entscheidung fiel mir einfach, da ich von Anfang an überzeugt war, dass dies die beste Möglichkeit ist um möglichst viele Funktionen einzufügen, die Benutzerfreundlichkeit zu gewährleisten und das Layout nicht als zu überfüllt wirken zu lassen. Im unteren Bild ist die weiter ausgearbeitete Skizze der Hauptfunktion.
 
 
-  <img src="static/images/readme/Skizze.jpg" alt="Beschreibung" width="80%">
+  <img src="./static/images/readme/Skizze.jpg" alt="Beschreibung" width="80%">
 
 
 ### 3.3 Decide
@@ -147,9 +147,9 @@ Professionelle Systeme aus der Grossindustrie (wie teure Pick-by-Light- oder RFI
 
 **End-to-End-Ablauf:** Unten aufgeführt sind die User-Journey Maps, welche diverse Abläufe darstellen, wie der Benutzer ein Ziel erreichen/ausführen kann.
 
-  <img src="static/images/readme/User-Journey Maps 1.png" alt="Beschreibung" width="60%">
-    <img src="static/images/readme/User-Journey Maps 2.png" alt="Beschreibung" width="60%">
-      <img src="static/images/readme/User-Journey Maps 3.png" alt="Beschreibung" width="60%">
+  <img src="./static/images/readme/User-Journey Maps 1.png" alt="Beschreibung" width="60%">
+    <img src="./static/images/readme/User-Journey Maps 2.png" alt="Beschreibung" width="60%">
+      <img src="./static/images/readme/User-Journey Maps 3.png" alt="Beschreibung" width="60%">
    
 **Designentscheide:**
   - **Navigation/Filterung:**
@@ -183,14 +183,14 @@ Professionelle Systeme aus der Grossindustrie (wie teure Pick-by-Light- oder RFI
   - Die Startseite fungiert als zentrales Dashboard für das Inventar. Der Bildschirm ist funktional in drei Kernbereiche unterteilt: die globale Such- und Kategorieleiste (Top-Bar), die spezifische Filter-Sidebar (noch nicht umgesetzt) und die Artikelanzeige im Hauptbereich. Die Navigation bleibt durch eine schlanke Navbar im oberen Bereich jederzeit zugänglich.
   - Das User Interface wird am Ende auf allen Seiten möglichst identisch erscheinen. Aufgrund des Namens "Sortify", welcher einige User an "Spotify" erinnert, wird das Logo grün dargestellt. Die Benutzeroberfläche wird konstrastreich(weiss auf dunkelblauem Hintergrund mit schwarzer Schriftfarbe und grünen Akzenten) gestalltet. Wichtige Bottons werden hellblau dargestellt und Warnungen werden rot dargestellt (Bsp. Bestand niederig)
 
-  <img src="static/images/readme/Prototyp.png" alt="Beschreibung" width="60%">
+  <img src="./static/images/readme/Prototyp.png" alt="Beschreibung" width="60%">
 
  
 - **Designentscheidungen:** 
   - Dynamische Formularfelder: Da ein universelles Inventarsystem für eine Schraube andere Spezifikationen erfordert (Länge, Gewinde) als für Tierfutter (Geschmack, MHD), rendert das UI die Eingabemasken und Filter-Sidebars komplett dynamisch auf Basis der in den Einstellungen definierten Attributstrukturen(Filteroptionen) einer Unterkategorie, welche in der MongoDB Datenbank gespeichert werden.
   - Umsetzung der oben definierten Skizze aufgrund Umsetzungsmöglichkeiten und Benefits wie Filtermöglichkeiten, Übersichtlichkeit und Kompatibilität mit Smartphones.
 
-  <img src="static/images/readme/Filteroptions_Mongo_DB.png" alt="Beschreibung" width="30%">
+  <img src="./static/images/readme/Filteroptions_Mongo_DB.png" alt="Beschreibung" width="30%">
 
 #### 3.4.2. Umsetzung (Technik)
  **Technologie-Stack:** 
@@ -249,23 +249,23 @@ Die Anwendung trennt strikt zwischen öffentlichen Bereichen und geschützten Be
   <br>
   Beinhaltet die Produktdaten, Bildlink zu Cloudinary, Erfassungs-/Updatezeit sowie den zugehörigen User.
 
-    <img src="static/images/readme/articles.png" alt="Beschreibung" width="60%">
+    <img src="./static/images/readme/articles.png" alt="Beschreibung" width="60%">
 
   - **categories:**
     <br>
   Beinhaltet die Hauptkategorien mit den zugehörigen Unterkategorien (inkl. Filteroptionen)Erfassungszeit sowie den zugehörigen User.
 
-    <img src="static/images/readme/categories.png" alt="Beschreibung" width="30%">
+    <img src="./static/images/readme/categories.png" alt="Beschreibung" width="30%">
   - **filter_attributes:**
    <br>
   Beinhaltet die Filteroptionen mit den zugehörigen Auswahloptionen, Einheit, ui_type (Zahl, Text, Dropdown) sowie den zugehörigen User.
 
-    <img src="static/images/readme/filter_attributes.png" alt="Beschreibung" width="30%">
+    <img src="./static/images/readme/filter_attributes.png" alt="Beschreibung" width="30%">
   - **loginAttempts**
    <br>
 Zeichnet bei einer fehlerhaften Login Eingabe die externe IP-Adresse auf. Bei 5 Fehlversuchen wird der Login für 5 Minuten blockiert. Sobald korrekt eingeloggt wird, wird die Protokollierung gelöscht.
 
-    <img src="static/images/readme/loginAttempts.png" alt="Beschreibung" width="30%">
+    <img src="./static/images/readme/loginAttempts.png" alt="Beschreibung" width="30%">
 
   - **sessionLogs**
    <br>
@@ -278,7 +278,7 @@ Zeichnet die Sessions der einzelnen User auf, indem die UserId, E-Mail, Login Ze
 Beinhaltet die verschiedenen Benutzer, welche sich registriert haben inkl. E-Mail, Passwort (gehasht), Vorname, Nachname, Land (optional), Geburtsdatum (optional), Erstellungsdatum und Verifizierungsstatus.
 Wenn ein Nutzer sich neu registriert, wird hier ebenfalls der Verifizierungscode und der Ablaufzeitpunkt des Verifizierungscodes gespeichert.
 
-    <img src="static/images/readme/users.png" alt="Beschreibung" width="30%">
+    <img src="./static/images/readme/users.png" alt="Beschreibung" width="30%">
 
 
 
@@ -291,11 +291,11 @@ Wenn ein Nutzer sich neu registriert, wird hier ebenfalls der Verifizierungscode
 ### 3.5 Validate
 - **Bilder der getesteten Version**
 
-    <img src="static/images/readme/Validation_1.png" alt="Beschreibung" width="80%">
-     <img src="static/images/readme/Validation_2.png" alt="Beschreibung" width="80%">
-      <img src="static/images/readme/Validation_3.png" alt="Beschreibung" width="80%">
-       <img src="static/images/readme/Validation_4.png" alt="Beschreibung" width="80%">
-        <img src="static/images/readme/Validation_5.png" alt="Beschreibung" width="80%">
+    <img src="./static/images/readme/Validation_1.png" alt="Beschreibung" width="80%">
+     <img src="./static/images/readme/Validation_2.png" alt="Beschreibung" width="80%">
+      <img src="./static/images/readme/Validation_3.png" alt="Beschreibung" width="80%">
+       <img src="./static/images/readme/Validation_4.png" alt="Beschreibung" width="80%">
+        <img src="./static/images/readme/Validation_5.png" alt="Beschreibung" width="80%">
 
 
 - **Ziele der Prüfung:** 
