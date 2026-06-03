@@ -13,7 +13,6 @@
 4. [Erweiterungen [Optional]](#4-erweiterungen-optional)
 5. [KI-Deklaration](#6-ki-deklaration)
 
-> **Hinweis:** Massgeblich sind die im **Unterricht** und auf **Moodle** kommunizierten Anforderungen.
 
 <!-- WICHTIG: DIE KAPITELSTRUKTUR DARF NICHT VERÄNDERT WERDEN! -->
 
@@ -43,7 +42,11 @@ _Kleinbetriebe, Shared-Workspaces, Lieferanten, Baumärkte_
 
 
 ## 2. Lösungsidee
-<!--Beschreibt die Lösungsidee.-->
+
+<img src="/Users/danielkern/Desktop/Prototyping/Projektarbeit/digitales Kleinteilelager/smart_inventory_management/static/images/readme/KI_Picture.png" alt="Beschreibung" width="80%">
+
+Gemini KI-Bild als Veranschaulichung 
+
 ### Kernfunktionalität: 
   - **Suchen & Finden:** Nutzer filtern in der SvelteKit-Web-App nach Attributen (z. B. M3-Schraube, 20mm Länge). Nach der Auswahl sendet die App ein Signal an einen Raspberry Pi, der die LED am entsprechenden Fach im Regal aufleuchten lässt (Pick-by-Light).
 
@@ -54,10 +57,11 @@ _Kleinbetriebe, Shared-Workspaces, Lieferanten, Baumärkte_
   - **Mobiler Datenzugriff (Projektarbeit):** Da die Anwendung online zugänglich ist, kann der aktuelle Lagerbestand jederzeit von unterwegs (z. B. im Baumarkt) eingesehen werden.
     - **Aufrufen des Inventars** durch Filterung nach Kategorien und Unterkategorien, sowie Suchfeld inkl. Detailanzeige.
 
-    - **Bestellen** Filterung der Artikel nach diversen Kriterien (z.B. Bestand) und erstellen einer Bestellliste
+    - **Bestellen** <span style ="color:red"> Notiz 03.06.26: Aufgrund Projektumfang nicht umgesetzt </span> Filterung der Artikel nach diversen Kriterien (z.B. Bestand) und erstellen einer Bestellliste     
+
     Möglichkeit um Artikel als bestellt zu vermerken damit diese auf der "In Bestellung" Liste angezeigt zu werden und Informationen wie "In Bestellung" + "Bestellmenge", "Bestellstatus" und "Bestelldatum" in der Datenbank hinterlegt werden und die Infos auf der Produktseite angezeigt werden.
 
-    - **In Bestellung**	Anzeige der ausstehenden Lieferungen,
+    - **In Bestellung**	<span style ="color:red"> Notiz 03.06.26: Aufgrund Projektumfang nicht umgesetzt </span> Anzeige der ausstehenden Lieferungen, 
 		Bestätigung nach Erhalt inkl. Aktualisierung des Bestands (Anpassung der Bestellmenge möglich)
 
     - **Kategorien verwalten** Verwalten der Attribute (Filtermöglichkeiten) je Kategorie, Attribute können pro Kategorie hinzugefügt, bearbeitet und gelöscht werden. Diese dienen dann als Vorlage für "Artikel hinzufügen" und werden für die Filteroptionen verwendet.
@@ -82,7 +86,7 @@ Die Durchführung des Projekts erfolgte entlang der vorgegebenen Phasen (Underst
 
 ### 3.1 Understand & Define
  **Zielgruppenverständnis:**
-  - **Zielgruppe:** Die primäre Zielgruppe umfasst Privatpersonen und kleine Einzelunternehmen.
+  - **Zielgruppe:** Die primäre Zielgruppe umfasst Privatpersonen und kleine Einzelunternehmen innerhalb der Schweiz (Zürich), budgetorientierte Personen, Interesse an besserer Lagerhaltung (Kleinteile)
   - **Problemraum:** In Werkstätten, Hobby-Kellern oder kleinen Betrieben herrscht oft Unordnung bei Kleinteilen (Schrauben, Elektronikbauteile). Das Suchen nach dem exakt passenden Teil (z.B. M3 vs. M4 Schraube) kostet Zeit. Zudem ist die manuelle Bestandskontrolle fehleranfällig und aufwendig, was oft dazu führt, dass wichtige Teile genau dann fehlen, wenn man sie dringend braucht oder erneut gekauft werden, obwohl diese noch vorhanden sind.
 
     - Nutzer:
@@ -105,7 +109,7 @@ Die Durchführung des Projekts erfolgte entlang der vorgegebenen Phasen (Underst
 
     - Zur Fokussierung des Problemraums wurden folgende *How-Might-We-Fragen (HMW)* formuliert
       - Wie könnten wir den Such- und Entnahmeprozess von Kleinteilen so digitalisieren, dass das System den Nutzer visuell oder über smarte Filter direkt zum richtigen Artikel führt?
-      - Wie könnten wir die Bestandsaktualisierung und Erfassung von Artikeln so reibungslos gestalten, dass der manuelle Tippaufwand komplett entfällt?
+      - Wie könnten wir die Bestandsaktualisierung und Erfassung von Artikeln so reibungslos gestalten, dass der manuelle Tippaufwand möhlichst gering ist?
       -	Wie können Fehlkäufe des Nutzers vermieden und zu wenig Bestand verhindert werden?
 
   
@@ -124,6 +128,7 @@ Professionelle Systeme aus der Grossindustrie (wie teure Pick-by-Light- oder RFI
  **Variantenüberblick:** Um Lösungsansätze für die Hauptfunktion, also die intuitive Suchmaske und die Artikelfilterung zu sammeln, wurde die Kreativitätsmethode *Crazy 8s* angewendet.
  
 <img src="/Users/danielkern/Desktop/Prototyping/Projektarbeit/digitales Kleinteilelager/smart_inventory_management/static/images/readme/Crazy_8s_1.png" alt="Beschreibung" width="80%">
+
 <img src="/Users/danielkern/Desktop/Prototyping/Projektarbeit/digitales Kleinteilelager/smart_inventory_management/static/images/readme/Crazy_8s_2.png" alt="Beschreibung" width="80%">
 
  **Kommentare von Simeon und Samet zu den verschiedenen Varianten (ausserhalb Unterricht):**
@@ -275,12 +280,12 @@ Wenn ein Nutzer sich neu registriert, wird hier ebenfalls der Verifizierungscode
     <img src="/Users/danielkern/Desktop/Prototyping/Projektarbeit/digitales Kleinteilelager/smart_inventory_management/static/images/readme/users.png" alt="Beschreibung" width="30%">
 
 
-_[Wie werden Daten gespeichert, verwaltet, abgerufen?]_
+
 - **Deployment:** https://sortify-inventory-management.netlify.app
 
 - **Besondere Entscheidungen:** 
+  - Für die Verifizierung wurde ein normales GMail Konto angefügt und keine eigene Domain erstellt.
 
-_[z. B. Trade-offs, Vereinfachungen]_  
 
 ### 3.5 Validate
 - **Bilder der getesteten Version**
@@ -330,28 +335,19 @@ _[z. B. Trade-offs, Vereinfachungen]_
       - Die Funktion zum Löschen von Filtern war unklar beschriftet. Testpersonen wünschten sich eine direkte Bestandsanzeige neben dem Filterergebnis. 
 
 - **Zusammenfassung der Resultate:** 
-Die Evaluation bestätigte, dass die Grundarchitektur von Sortify logisch aufgebaut ist und die dynamische Filterung eine extrem schnelle Artikelsuche ermöglicht. Das absolute Highlight aus Nutzersicht ist der KI-gestützte Import über das Bookmarklet, welcher die Erfassungsdauer auf ein Fünftel der manuellen Eingabezeit reduziert. Dennoch zeigten sich bei Erstanwendern leichte Einstiegshürden, die primär durch fehlendes visuelles Feedback während der KI-Ladezeit sowie kleinere Logikfehler bei der Kategoriezuweisung verursacht wurden.  
+Die Evaluation bestätigte, dass die Grundarchitektur von Sortify logisch aufgebaut ist und die dynamische Filterung eine extrem schnelle Artikelsuche ermöglicht. Sehr vorteilhaft aus Nutzersicht ist der KI-gestützte Import über das Lesezeichen, welcher die Erfassungsdauer auf ein Fünftel der manuellen Eingabezeit reduziert. Dennoch zeigten sich bei Erstanwendern leichte Einstiegshürden, die primär durch fehlendes visuelles Feedback während der KI-Ladezeit sowie kleinere Logikfehler bei der Kategoriezuweisung verursacht wurden.  
 - **Abgeleitete Verbesserungen:** 
   - **Priorität 4 (Usability "Katastrophe" / Release-Blocker):** 
     - *Fehlerhafte Kategoriezuweisung beheben.* Es muss technisch zwingend unterbunden werden, dass Artikel direkt einer Hauptkategorie zugewiesen werden können, da dies die mandantenfähige Datenbankarchitektur und die Logik der dynamischen Filter bricht.
-    - *Leere Zustände (Empty States):* Hauptkategorien ohne vorhandene Unterkategorien sollen im Dropdownmenü auf der Inventarseite ausgeblendet oder visuell markiert werden, da diese für grosse Verwirrung sorgen, wenn man diese auswählen kann und danach keine Artikel angezeigt werden. Das selbe gilt für Artikel hinzufügen, wobei man eine Hauptkategorie anwählen kann und danach keine Unterkategorie erscheint.
+    - *Leere Zustände:* Hauptkategorien ohne vorhandene Unterkategorien sollen im Dropdownmenü auf der Inventarseite ausgeblendet werden, da diese für grosse Verwirrung sorgen, wenn man diese auswählen kann und danach keine Artikel angezeigt werden. Das selbe gilt für Artikel hinzufügen, wobei man eine Hauptkategorie anwählen kann und danach keine Unterkategorie erscheint.
 
   - **Priorität 3 (Grosses Problem / Hohe Priorität):** *Visuelles Feedback beim KI-Import.* Ein Ladeindikator (z. B. Spinner oder Progress Bar) muss beim Auslösen des Bookmarklets implementiert werden. Das aktuelle Fehlen von Feedback führt zu grosser Verunsicherung und potenziellen Mehrfach-Ausführungen durch die Nutzer.
   - **Priorität 2 (Kleines Problem / Tiefe Priorität):** 
-    - *UX-Writing anpassen:* Beschriftung des Löschen-Buttons im administrativen Filterbereich von "Löschen" zu "Filter löschen" präzisieren, um kognitive Reibung zu minimieren.
-    - *Klickpfade verkürzen:* Neu erstellte Hauptkategorien sollen nach dem Speichern automatisch im UI aufklappen, um den Weg zur zwingend notwendigen Erstellung der Unterkategorie zu beschleunigen.
-    - *Informationsarchitektur optimieren:* Direkte Anzeige des aktuellen Lagerbestands direkt auf der Artikelkarte in der Filterübersicht ergänzen, damit Nutzer für diese Kerninformation nicht in die Detailansicht wechseln müssen.
-## 4. Erweiterungen [Optional]
+    - *UX-Writing anpassen:* Beschriftung des Löschen-Buttons im administrativen Filterbereich von "Löschen" zu "Filter löschen" präzisieren, um Missverständnisse zu minimieren.
+    - *Klickpfade verkürzen:* Neu erstellte Hauptkategorien sollen nach dem Speichern automatisch im UI aufklappen, um den Weg zur notwendigen Erstellung der Unterkategorie zu beschleunigen.
+    - *Informationsarchitektur optimieren:* Direkte Anzeige des aktuellen Lagerbestands direkt auf in der Inventarübersicht, damit Nutzer für diese Kerninformation nicht in die Detailansicht wechseln müssen.
+## 4. Erweiterungen
 Dokumentiert Erweiterungen über den Mindestumfang hinaus.
-> **Hinweis:** Jede Erweiterung ist separat nach dem folgenden Schema zu beschreiben.
-
-### _[4.x Kurzbeschreibung / Titel]_  
-- **Beschreibung & Nutzen:** _[Was wurde erweitert? Warum?]_  
-- **Wo umgesetzt:** _[Wie und wo wurde es gemacht? Frontend, Backend, Datenbank?]_  
-- **Referenz:** _[Wo wird die Erweiterung auch noch beschrieben, z.B. Screenshot oder Beschreibung in einem anderen Kapitel]_  
-- **Aus Evaluation abgeleitet?:** _[Wurde diese Erweiterung als Folge eines in der Evaluation identifizierten Issues implementiert?]_  
-
-> Das folgende **Beispiel** wurde bewusst kurz gehalten. Erweiterungen dürfen auch ausführlicher beschrieben werden.
 
 ### 4.1 KI-gestützter Artikel-Import (Bookmarklet & Google Gemini)
 - **Beschreibung & Nutzen:** Die manuelle Dateneingabe ist der grösste "Pain Point" bei Inventar-Systemen. Um dies zu lösen, wurde ein externes Browser-Lesezeichen entwickelt, das Nutzer in beliebigen Online-Shops (z. B. Galaxus, Jumbo) anklicken können. Dieses kann auf der Webseite unter Tools in das Lesezeichenmenü gezogen werden. Es extrahiert versteckte Strukturdaten (JSON-LD) sowie Seitentexte und leitet auf die Sortifiy Artikel hinzufügen Webseite, danach sendet dieses die Daten an das Sortify-Backend und Cheerio bereinigt einen Teil der Daten. Danach übernimmt die Google Gemini KI, bereinigt die restlichen Daten, verfasst saubere Beschreibungen, liest Metadaten wie EAN/GTIN aus und berechnet durch die Packungseinheit und den Verkaufspreis automatisch die Gesamtstückzahl. Dies reduziert die Erfassungsdauer erheblich, wie dies in der Evalutation bestätigt wurde.
@@ -369,7 +365,7 @@ Dokumentiert Erweiterungen über den Mindestumfang hinaus.
   - Teilweise. Dieses Feature wurde von Beginn an konzipiert, jedoch wurden einige Verbesserungsvorschläge in Bezug auf die Bedienung, wie Ladebalken umgesetzt.
 
 ### 4.2 Multi-Tenant-Architektur & Custom Security Lifecycle
-- **Beschreibung & Nutzen:** Um das unberechtigte Ändern von Daten zu unterbinden und das getrennte Anlegen und Nutzen von Artikel, Filtern und dem Inventar für verschiedene User zu ermöglichen, wurde eine vollständig serverseitiges Authentifizierungssystem für eine Mandantenarchitektur eingebaut. Mehrere Nutzer können das System parallel verwenden, wobei ihre Inventardaten strikt voneinander isoliert sind. Das System beinhaltet E-Mail-Verifizierung (Anbindung einer Gmail Mailadresse über ) via Tokens, zeitlich begrenzte Passwort-Reset-Links, Speicherung des Login Zugangs mit Cookie und IP-basiertes Rate-Limiting als Schutz vor Brute-Force-Angriffen. 
+- **Beschreibung & Nutzen:** Um das unberechtigte Ändern von Daten zu unterbinden und das getrennte Anlegen und Nutzen von Artikel, Filtern und dem Inventar für verschiedene User zu ermöglichen, wurde eine vollständig serverseitiges Authentifizierungssystem für eine Mandantenarchitektur eingebaut. Mehrere Nutzer können das System parallel verwenden, wobei ihre Inventardaten strikt voneinander isoliert sind. Das System beinhaltet E-Mail-Verifizierung (Anbindung einer Gmail Mailadresse über nodemailer) via Tokens, zeitlich begrenzte Passwort-Reset-Links, Speicherung des Login Zugangs mit Cookie und IP-basiertes Rate-Limiting als Schutz vor Brute-Force-Angriffen. 
 
 - **Wo umgesetzt:**
   - **Frontend:** Login, Logout, Register, Reset-Password in SvelteKit.
@@ -387,7 +383,7 @@ Dokumentiert Erweiterungen über den Mindestumfang hinaus.
   - **Backend:** SvelteKit Form-Actions nehmen den Zuschnitt entgegen, konvertieren diesen in einen Buffer und laden ihn Serverseitig direkt auf Cloudinary hoch.
   - **Datenbank:** MongoDB speichert nicht die Bilddatei, sondern lediglich die von Cloudinary generierte Bild-URL als referenziertes Feld im jeweiligen Artikel-Dokument.
 
-- **Referenz** User Interface Design in Kap. 3.4.1 und im Bereich technische Umsetzung in Kap. 3.4.2.
+- **Referenz**  Bereich technische Umsetzung in Kap. 3.4.2.
 
 - **Aus Evaluation abgeleitet?:** Nein. Wurde zur Sicherstellung der Konsistenz vorab entwickelt.
 
@@ -408,7 +404,7 @@ Dokumentiert Erweiterungen über den Mindestumfang hinaus.
 ### 5.1 KI-Tools
 - **Eingesetzte Tools**: Gemini 3.1 Pro (erweiterter Denkaufwand), externe Nutzung ohne Einbindung in VSCode.
 - **Zweck & Umfang**: 
-  - Zu Beginn wurde genau überlegt, was die Anforderungen sind und wie ein möglichst anpassbares, erweiterbares und übersichtliches System erschaffen werden muss. Nach dem Festlegen der unter Kapitel Struktur & Komponenten (geschützte Bereiche, ohne Profilverwaltung) definierten Seiten wurde der Grundaufbau (Seiten, Anbindung an die MongoDB Datenbank, Navigation, Ordnerstruktur) manuell angelegt. Aufgrund der Effizienz und dem fehlenden Know How wurde nach dem Grundaufbau für das gesamte Projekt KI genutzt um die definierten Wünsche umzusetzen, dabei entstanden immer weitere gewüwschte Verbesserungen und Probleme, welche behoben werden mussten. Teilweise wurden einige kleine Änderungen in Bezug auf das Layout manuell durchgeführt, jedoch ist der grösste Teil des Codes komplett durch KI entstanden.
+  - Zu Beginn wurde genau überlegt, was die Anforderungen sind und wie ein möglichst anpassbares, erweiterbares und übersichtliches System erschaffen werden muss. Nach dem Festlegen der unter Kapitel Struktur & Komponenten (geschützte Bereiche, ohne Profilverwaltung) definierten Seiten wurde der Grundaufbau (Seiten, Anbindung an die MongoDB Datenbank, Navigation, Ordnerstruktur) manuell angelegt. Aufgrund der Effizienz und dem fehlenden Know How wurde nach dem Grundaufbau für das gesamte Projekt KI genutzt um die definierten Wünsche umzusetzen, dabei entstanden immer weitere gewünschte Verbesserungen und Probleme, welche behoben werden mussten. Teilweise wurden einige kleine Änderungen in Bezug auf das Layout manuell durchgeführt, jedoch ist der grösste Teil des Codes komplett durch KI entstanden.
 
   - Für die Erarbeitung der README.md Datei wurde KI zur Strukturierung und Ideenfindung genutzt, jedoch wurde ein grosser Teil manuell geschrieben und übernommene Teile durch die KI wurden umgeschrieben.
 
@@ -424,12 +420,12 @@ Dokumentiert Erweiterungen über den Mindestumfang hinaus.
 
 
 ### 5.2 Prompt-Vorgehen
-- **Vorgehen** Es wurde nicht direkt nach kompletten, fertigen Seiten gefragt. Stattdessen wurde die KI iterativ genutzt. Dieses Vorgehen verhinderte Fehler und machte es mir möglich die angepassten Funktionen fortlaufend einzeln zu testen und meinen Wünschen anzupassen. Bei Bugs wurden stets Fehlermeldungen aus dem Terminal (z.B. SvelteKit Accessibility Warnings oder MongoDB TypeErrors) in Kombination mit dem spezifischen Code-Snippet gepromptet. Zusätzlich wurde die KI auch nach Strukturierungsvorschläge für die Datenspeicherung in der Datenbank genutzt. Ebenso wurde teilweise nachgefragt, ob Probleme nicht an xy liegen könnte.
+- **Vorgehen** Es wurde nicht direkt nach kompletten, fertigen Seiten gefragt. Stattdessen wurde die KI iterativ genutzt. Dieses Vorgehen verhinderte Fehler und machte es mir möglich die angepassten Funktionen fortlaufend einzeln zu testen und meinen Wünschen anzupassen. Bei Bugs wurden stets Fehlermeldungen aus dem Terminal VON VsCode oder Netlify in Kombination mit dem spezifischen Code-Snippet gepromptet. Zusätzlich wurde die KI auch nach Strukturierungsvorschläge für die Datenspeicherung in der Datenbank genutzt. Ebenso wurde teilweise nachgefragt, ob Probleme nicht an xy liegen könnte.
 
 - **Fragen** Die KI wurde ebenfalls genutzt um in einem separaten Chat technische Möglichkeiten zu klären um basierend auf den Informationen das weitere Vorgehen zu bestimmen.
 
 ### 5.3 Reflexion
-- **Nutzen** KI erwies sich innerhalb der Projekts als extrem hilfreich und beschleunigte die Entwicklung enorm. Zudem wären viele Dinge mit meinem Know-How nicht umsetzbar gewesen. Ebenfalls half die KI auch enorm bei der Bewertung von Ideen.
+- **Nutzen** KI erwies sich innerhalb der Projekts als extrem hilfreich und beschleunigte die Entwicklung enorm. Zudem wären viele Dinge mit meinem Know-How nicht umsetzbar gewesen. Ebenfalls half die KI auch enorm bei der Bewertung von Ideen geholfen.
 
 - **Grenzen** Trotz der grossen Hilfe von KI gab es teilweise Zeiten, in welcher die KI einfache Entscheidungen komplett falsch interpretierte (evtl. ist dies auf hohe Auslastung der Dienste zurückzuführen). Ebenfalls war es nicht Möglich weiter zu Prompten, sobald das Tokenlimit aufgebraucht war und auf ein schwächeres Modell (3.1 Flash-Lite) gewechselt wurde.
 
