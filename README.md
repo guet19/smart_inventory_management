@@ -280,7 +280,7 @@ Die Anwendung trennt strikt zwischen öffentlichen Bereichen und geschützten Be
   Beinhaltet die verschiedenen Benutzer, welche sich registriert haben inkl. E-Mail, Passwort (gehasht), Vorname, Nachname, Land (optional), Geburtsdatum (optional), Erstellungsdatum und Verifizierungsstatus.
   Wenn ein Nutzer sich neu registriert, wird hier ebenfalls der Verifizierungscode und der Ablaufzeitpunkt des Verifizierungscodes gespeichert.
 
-    <img src="./static/images/readme/users.png" alt="Beschreibung" width="30%">
+  <img src="./static/images/readme/users.png" alt="Beschreibung" width="30%">
 
 
 
