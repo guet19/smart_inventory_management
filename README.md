@@ -59,7 +59,7 @@ Gemini KI-Bild als Veranschaulichung
 
     - **Bestellen**
 
-      > [!WARNING]
+      
       > **Notiz 03.06.26: Aufgrund Projektumfang nicht umgesetzt**
       >
       > Filterung der Artikel nach diversen Kriterien (z.B. Bestand) und erstellen einer Bestellliste. 
@@ -68,7 +68,7 @@ Gemini KI-Bild als Veranschaulichung
 
     - **In Bestellung**
 
-      > [!WARNING]
+    
       > **Notiz 03.06.26: Aufgrund Projektumfang nicht umgesetzt**
       >
       > Anzeige der ausstehenden Lieferungen, Bestätigung nach Erhalt inkl. Aktualisierung des Bestands (Anpassung der Bestellmenge möglich)
@@ -77,7 +77,7 @@ Gemini KI-Bild als Veranschaulichung
 
     - **Artikel hinzufügen** Auswahl der Kategorie, Bildimport, Angabe der Artikeldetails/Spezifikationen, EAN/GTIN, Angabe des Mindestbestands, Angabe des Bestelllinks.
 
-      > [!IMPORTANT]
+      
       > **Abgrenzung:**
       > (Angabe des Lagerfachs), (Angabe des Gewichts pro Stück), (Angabe des Fach Nettogewichts)
 
