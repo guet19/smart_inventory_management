@@ -273,17 +273,17 @@ Die Anwendung trennt strikt zwischen öffentlichen Bereichen und geschützten Be
 
   <img src="./static/images/readme/filter_attributes.png" alt="Beschreibung" width="100%">
 
-  - **loginAttempts**
+  - **loginAttempts:**
   Zeichnet bei einer fehlerhaften Login Eingabe die externe IP-Adresse auf. Bei 5 Fehlversuchen wird der Login für 5 Minuten blockiert. Sobald korrekt eingeloggt wird, wird die Protokollierung gelöscht.
 
   <img src="./static/images/readme/loginAttempts.png" alt="Beschreibung" width="100%">
 
-  - **sessionLogs**
+  - **sessionLogs:**
   Zeichnet die Sessions der einzelnen User auf, indem die UserId, E-Mail, Login Zeit und Logout Zeit (insofern ausgeloggt wird) gespeichert wird. Die Daten werden nach 3 Tagen durch einen definierten Prozess in Mongo DB automatisch gelöscht. 
 
   <img src="./static/images/readme/sessionLogs.png" alt="Beschreibung" width="100%">
   
-  - **users**
+  - **users:**
   Beinhaltet die verschiedenen Benutzer, welche sich registriert haben inkl. E-Mail, Passwort (gehasht), Vorname, Nachname, Land (optional), Geburtsdatum (optional), Erstellungsdatum und Verifizierungsstatus.
   Wenn ein Nutzer sich neu registriert, wird hier ebenfalls der Verifizierungscode und der Ablaufzeitpunkt des Verifizierungscodes gespeichert.
 
