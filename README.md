@@ -21,7 +21,7 @@
 ## 1. Ausgangslage
 <!-- Kurz beschreiben, welches Problem adressiert wird und welches Ergebnis angestrebt ist. Wem nützt die Lösung, wer ist beteiligt oder betroffen?-->
 ### Problem: 
-_Die Lagerung von Kleinteilen (Schrauben, Muttern,Elektrotechnikbauteilen usw.) ist in privaten Werkstätten und kleinen Betrieben oft sehr unübersichtlich und eine Herausforderung. Die Suche nach dem passenden Teil kostet viel Zeit und die Lagerhaltung wird oft vernachlässigt, da es von Hand sehr zeitaufwendig (ständig neue Beschriftung der einzelnen Fächer mit Artikelbezeichnung, Zählen des Bestands usw.) und fehleranfällig ist. Dies führt oft zu dem frustrierenden Moment, dass benötigte Teile (z. B. eine spezifische M3-Schraube) genau dann fehlen, wenn sie mitten in einem Projekt dringend benötigt werden. Ebenso führt es zu Fehlkäufen, da man bereits vorhandenes Verbrauchsmaterial zur "Sicherheit" im Baumarkt erneut kauft, obwohl man diese bereits auf Lager hat._
+_Die Lagerung von Kleinteilen (Schrauben, Muttern, Elektrotechnikbauteilen usw.) ist in privaten Werkstätten und kleinen Betrieben oft sehr unübersichtlich und eine Herausforderung. Die Suche nach dem passenden Teil kostet viel Zeit und die Lagerhaltung wird oft vernachlässigt, da es von Hand sehr zeitaufwendig (ständig neue Beschriftung der einzelnen Fächer mit Artikelbezeichnung, Zählen des Bestands usw.) und fehleranfällig ist. Dies führt oft zu dem frustrierenden Moment, dass benötigte Teile (z. B. eine spezifische M3-Schraube) genau dann fehlen, wenn sie mitten in einem Projekt dringend benötigt werden. Ebenso führt es zu Fehlkäufen, da man bereits vorhandenes Verbrauchsmaterial zur "Sicherheit" im Baumarkt erneut kauft, obwohl man diese bereits auf Lager hat._
 ### Ziele:
 
 - Verkürzung der Suchzeit durch  visuelle Führung (Pick-by-Light) und passende Filteroptionen durch Benutzeroberfläche.
@@ -57,18 +57,27 @@ Gemini KI-Bild als Veranschaulichung
   - **Mobiler Datenzugriff (Projektarbeit):** Da die Anwendung online zugänglich ist, kann der aktuelle Lagerbestand jederzeit von unterwegs (z. B. im Baumarkt) eingesehen werden.
     - **Aufrufen des Inventars** durch Filterung nach Kategorien und Unterkategorien, sowie Suchfeld inkl. Detailanzeige.
 
-    - **Bestellen** <span style ="color:red"> Notiz 03.06.26: Aufgrund Projektumfang nicht umgesetzt </span> Filterung der Artikel nach diversen Kriterien (z.B. Bestand) und erstellen einer Bestellliste     
+    - **Bestellen**
+      > [!WARNING]
+      > **Notiz 03.06.26: Aufgrund Projektumfang nicht umgesetzt**
+      >
+      > Filterung der Artikel nach diversen Kriterien (z.B. Bestand) und erstellen einer Bestellliste. 
+      > 
+      > Möglichkeit um Artikel als bestellt zu vermerken, damit diese auf der "In Bestellung" Liste angezeigt werden und Informationen wie "In Bestellung" + "Bestellmenge", "Bestellstatus" und "Bestelldatum" in der Datenbank hinterlegt werden und die Infos auf der Produktseite angezeigt werden.
 
-    Möglichkeit um Artikel als bestellt zu vermerken damit diese auf der "In Bestellung" Liste angezeigt zu werden und Informationen wie "In Bestellung" + "Bestellmenge", "Bestellstatus" und "Bestelldatum" in der Datenbank hinterlegt werden und die Infos auf der Produktseite angezeigt werden.
-
-    - **In Bestellung**	<span style ="color:red"> Notiz 03.06.26: Aufgrund Projektumfang nicht umgesetzt </span> Anzeige der ausstehenden Lieferungen, 
-		Bestätigung nach Erhalt inkl. Aktualisierung des Bestands (Anpassung der Bestellmenge möglich)
+    - **In Bestellung**
+      > [!WARNING]
+      > **Notiz 03.06.26: Aufgrund Projektumfang nicht umgesetzt**
+      >
+      > Anzeige der ausstehenden Lieferungen, Bestätigung nach Erhalt inkl. Aktualisierung des Bestands (Anpassung der Bestellmenge möglich)
 
     - **Kategorien verwalten** Verwalten der Attribute (Filtermöglichkeiten) je Kategorie, Attribute können pro Kategorie hinzugefügt, bearbeitet und gelöscht werden. Diese dienen dann als Vorlage für "Artikel hinzufügen" und werden für die Filteroptionen verwendet.
 
     - **Artikel hinzufügen** Auswahl der Kategorie, Bildimport, Angabe der Artikeldetails/Spezifikationen, EAN/GTIN, Angabe des Mindestbestands, Angabe des Bestelllinks.
-    <br>
-    <span style ="color:red"> Abgrenzung:(Angabe des Lagerfachs),(Angabe des Gewichts pro Stück), (Angabe des Fach Nettogewichts) </span>
+      > [!CAUTION]
+      > **Abgrenzung:**
+      > (Angabe des Lagerfachs), (Angabe des Gewichts pro Stück), (Angabe des Fach Nettogewichts)
+
     - **KI-Artikelerfassung** Artikel können einfach per KI von einer Webseite eingelesen und erfasst werden. 
     
     
@@ -86,7 +95,7 @@ Die Durchführung des Projekts erfolgte entlang der vorgegebenen Phasen (Underst
 
 ### 3.1 Understand & Define
  **Zielgruppenverständnis:**
-  - **Zielgruppe:** Die primäre Zielgruppe umfasst Privatpersonen und kleine Einzelunternehmen innerhalb der Schweiz (Zürich), budgetorientierte Personen, Interesse an besserer Lagerhaltung (Kleinteile)
+  - **Zielgruppe:** Die primäre Zielgruppe umfasst zu Beginn Privatpersonen und kleine Einzelunternehmen innerhalb der Deutschschweiz, budgetorientierte Personen, Interesse an besserer Lagerhaltung (Kleinteile)
   - **Problemraum:** In Werkstätten, Hobby-Kellern oder kleinen Betrieben herrscht oft Unordnung bei Kleinteilen (Schrauben, Elektronikbauteile). Das Suchen nach dem exakt passenden Teil (z.B. M3 vs. M4 Schraube) kostet Zeit. Zudem ist die manuelle Bestandskontrolle fehleranfällig und aufwendig, was oft dazu führt, dass wichtige Teile genau dann fehlen, wenn man sie dringend braucht oder erneut gekauft werden, obwohl diese noch vorhanden sind.
 
     - Nutzer:
@@ -113,7 +122,7 @@ Die Durchführung des Projekts erfolgte entlang der vorgegebenen Phasen (Underst
       -	Wie können Fehlkäufe des Nutzers vermieden und zu wenig Bestand verhindert werden?
 
   
-**Existirende Lösungen:** 
+**Existierende Lösungen:** 
   - **Privatkunden/Kleinbetriebe:**  Für Privatkunden/Kleinbetriebe beschränken sich meist auf analoge Sortimentskästen mit unleserlichen Etiketten oder unübersichtliche Excel-Listen.   Die grösste Hürde bestehender Vorrats- oder Inventar-Apps liegt in der mangelhaften Usability, da jedes Produkt zeitaufwendig händisch eingetippt werden muss. Trotz Recherche in Arduino, RaspberryPi, Hackster.io, Instractables Foren, konnte ich keine fertige passende Lösung zum Eigenbau für Privatanwender und kleinere Betriebe finden. Fertige Lösungen, welche die Anforderungen erfüllen und kommerziell erworben werden können sind ebenfalls nicht vorhanden.
 
   - **Firmenlösungen:** 
@@ -245,6 +254,7 @@ Die Anwendung trennt strikt zwischen öffentlichen Bereichen und geschützten Be
   Durch die Mandantenfähigkeit wird ebenfalls bei jedem Schreib- und Lesevorgang die userId mit Hilfe des HTTP-Cookie des Users überprüft.
 
   Die Daten in MongoDB werden in folgende Collections unterteilt:
+
   - **articles:** 
   <br>
   Beinhaltet die Produktdaten, Bildlink zu Cloudinary, Erfassungs-/Updatezeit sowie den zugehörigen User.
@@ -252,25 +262,25 @@ Die Anwendung trennt strikt zwischen öffentlichen Bereichen und geschützten Be
   <img src="./static/images/readme/articles.png" alt="Beschreibung" width="100%">
 
   - **categories:**
-    <br>
+  <br>
   Beinhaltet die Hauptkategorien mit den zugehörigen Unterkategorien (inkl. Filteroptionen) Erfassungszeit sowie den zugehörigen User.
 
   <img src="./static/images/readme/categories.png" alt="Beschreibung" width="100%">
 
   - **filter_attributes:**
-   <br>
+  <br>
   Beinhaltet die Filteroptionen mit den zugehörigen Auswahloptionen, Einheit, ui_type (Zahl, Text, Dropdown) sowie den zugehörigen User.
 
   <img src="./static/images/readme/filter_attributes.png" alt="Beschreibung" width="100%">
 
   - **loginAttempts**
-   <br>
+  <br>
   Zeichnet bei einer fehlerhaften Login Eingabe die externe IP-Adresse auf. Bei 5 Fehlversuchen wird der Login für 5 Minuten blockiert. Sobald korrekt eingeloggt wird, wird die Protokollierung gelöscht.
 
   <img src="./static/images/readme/loginAttempts.png" alt="Beschreibung" width="100%">
 
   - **sessionLogs**
-   <br>
+  x§<br>
   Zeichnet die Sessions der einzelnen User auf, indem die UserId, E-Mail, Login Zeit und Logout Zeit (insofern ausgeloggt wird) gespeichert wird. Die Daten werden nach 3 Tagen durch einen definierten Prozess in Mongo DB automatisch gelöscht. 
 
   <img src="./static/images/readme/sessionLogs.png" alt="Beschreibung" width="100%">
@@ -368,7 +378,7 @@ Dokumentiert Erweiterungen über den Mindestumfang hinaus.
 
 - **Referenz:** Technische Umsetzung in Kap. 3.4.2.
 
-- **Aus Evaluation abgeleitet?:**
+- **Aus Evaluation abgeleitet?**
   - Teilweise. Dieses Feature wurde von Beginn an konzipiert, jedoch wurden einige Verbesserungsvorschläge in Bezug auf die Bedienung, wie Ladebalken umgesetzt.
 
 ### 4.2 Multi-Tenant-Architektur & Custom Security Lifecycle
@@ -380,7 +390,7 @@ Dokumentiert Erweiterungen über den Mindestumfang hinaus.
   - **Datenbank:** MongoDB-Collections für User, SessionLogs und fehlgeschlagene Anmeldeversuche.
 
 - **Referenz:** Technische Umsetzung in Kap. 3.4.2 und im Bereich Daten und Schnittstellen.
-- **Aus Evaluation abgeleitet?:** Nein. Die Nutzung mit mehreren Nutzern wurde gegen Ende des Projekts beschlossen.
+- **Aus Evaluation abgeleitet?** Nein. Die Nutzung mit mehreren Nutzern wurde gegen Ende des Projekts beschlossen.
 
 ### 4.3 Clientseitige Bildverarbeitung
 - **Beschreibung & Nutzen:** Um das Layout des digitalen Lagers nicht durch inkonsistente Bildformate zu zerschiessen, wurde eine Lösung für Produktbilder benötigt. Anstatt Bilder roh hochzuladen, wurde ein Editor integriert, der es Nutzern erlaubt, hochgeladene oder via Web importierte Bilder direkt im Browser zuzuschneiden und ein einheitliches 4:3-Format zu erzwingen. Vor dem senden an den Server, werden diese zusätzlich komprimiert.
@@ -404,7 +414,7 @@ Dokumentiert Erweiterungen über den Mindestumfang hinaus.
 
 - **Referenz:** Beobachtungen in Kap. 3.5 (Identifizierte Issues bei Aufgabe 3 & 4).
 
-- **Aus Evaluation abgeleitet?:** Ja. Diese Erweiterung ist eine direkte Lösung für das im Usability-Test identifizierte Problem mit Priorität 3.
+- **Aus Evaluation abgeleitet?** Ja. Diese Erweiterung ist eine direkte Lösung für das im Usability-Test identifizierte Problem mit Priorität 3.
 
 ## 5. KI-Deklaration
 
@@ -427,14 +437,14 @@ Dokumentiert Erweiterungen über den Mindestumfang hinaus.
 
 
 ### 5.2 Prompt-Vorgehen
-- **Vorgehen** Es wurde nicht direkt nach kompletten, fertigen Seiten gefragt. Stattdessen wurde die KI iterativ genutzt. Dieses Vorgehen verhinderte Fehler und machte es mir möglich die angepassten Funktionen fortlaufend einzeln zu testen und meinen Wünschen anzupassen. Bei Bugs wurden stets Fehlermeldungen aus dem Terminal VON VsCode oder Netlify in Kombination mit dem spezifischen Code-Snippet gepromptet. Zusätzlich wurde die KI auch nach Strukturierungsvorschläge für die Datenspeicherung in der Datenbank genutzt. Ebenso wurde teilweise nachgefragt, ob Probleme nicht an xy liegen könnte.
+- **Vorgehen:** Es wurde nicht direkt nach kompletten, fertigen Seiten gefragt. Stattdessen wurde die KI iterativ genutzt. Dieses Vorgehen verhinderte Fehler und machte es mir möglich die angepassten Funktionen fortlaufend einzeln zu testen und meinen Wünschen anzupassen. Bei Bugs wurden stets Fehlermeldungen aus dem Terminal VON VsCode oder Netlify in Kombination mit dem spezifischen Code-Snippet gepromptet. Zusätzlich wurde die KI auch nach Strukturierungsvorschläge für die Datenspeicherung in der Datenbank genutzt. Ebenso wurde teilweise nachgefragt, ob Probleme nicht an xy liegen könnte.
 
-- **Fragen** Die KI wurde ebenfalls genutzt um in einem separaten Chat technische Möglichkeiten zu klären um basierend auf den Informationen das weitere Vorgehen zu bestimmen.
+- **Fragen:** Die KI wurde ebenfalls genutzt um in einem separaten Chat technische Möglichkeiten zu klären um basierend auf den Informationen das weitere Vorgehen zu bestimmen.
 
 ### 5.3 Reflexion
-- **Nutzen** KI erwies sich innerhalb der Projekts als extrem hilfreich und beschleunigte die Entwicklung enorm. Zudem wären viele Dinge mit meinem Know-How nicht umsetzbar gewesen. Ebenfalls half die KI auch enorm bei der Bewertung von Ideen geholfen.
+- **Nutzen:** KI erwies sich innerhalb der Projekts als extrem hilfreich und beschleunigte die Entwicklung enorm. Zudem wären viele Dinge mit meinem Know-How nicht umsetzbar gewesen. Ebenfalls half die KI auch enorm bei der Bewertung von Ideen geholfen.
 
-- **Grenzen** Trotz der grossen Hilfe von KI gab es teilweise Zeiten, in welcher die KI einfache Entscheidungen komplett falsch interpretierte (evtl. ist dies auf hohe Auslastung der Dienste zurückzuführen). Ebenfalls war es nicht Möglich weiter zu Prompten, sobald das Tokenlimit aufgebraucht war und auf ein schwächeres Modell (3.1 Flash-Lite) gewechselt wurde.
+- **Grenzen:** Trotz der grossen Hilfe von KI gab es teilweise Zeiten, in welcher die KI einfache Entscheidungen komplett falsch interpretierte (evtl. ist dies auf hohe Auslastung der Dienste zurückzuführen). Ebenfalls war es nicht Möglich weiter zu Prompten, sobald das Tokenlimit aufgebraucht war und auf ein schwächeres Modell (3.1 Flash-Lite) gewechselt wurde.
 
-- **Risiken/Qualitätssicherung** Ein grosses Risiko sehe ich in der unreflektierten Übernahme von Codes. Vor einer tatsächlichen produktiven Nutzung des Programms wäre es ratsam jemanden mit grosser Erfahrung den Code überblicken zu lassen und auf Sicherheitslücken und Datenschutzvorkehrungen zu überprüfen. 
+- **Risiken/Qualitätssicherung:** Ein grosses Risiko sehe ich in der unreflektierten Übernahme von Codes. Vor einer tatsächlichen produktiven Nutzung des Programms wäre es ratsam jemanden mit grosser Erfahrung den Code überblicken zu lassen und auf Sicherheitslücken und Datenschutzvorkehrungen zu überprüfen. 
 
