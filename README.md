@@ -58,25 +58,28 @@ Gemini KI-Bild als Veranschaulichung
     - **Aufrufen des Inventars** durch Filterung nach Kategorien und Unterkategorien, sowie Suchfeld inkl. Detailanzeige.
 
     - **Bestellen**
-        > [!WARNING]
-        > **Notiz 03.06.26: Aufgrund Projektumfang nicht umgesetzt**
-        >
-        > Filterung der Artikel nach diversen Kriterien (z.B. Bestand) und erstellen einer Bestellliste. 
-        > 
-        > Möglichkeit um Artikel als bestellt zu vermerken, damit diese auf der "In Bestellung" Liste angezeigt werden und Informationen wie "In Bestellung" + "Bestellmenge", "Bestellstatus" und "Bestelldatum" in der Datenbank hinterlegt werden und die Infos auf der Produktseite angezeigt werden.
+
+      > [!WARNING]
+      > **Notiz 03.06.26: Aufgrund Projektumfang nicht umgesetzt**
+      >
+      > Filterung der Artikel nach diversen Kriterien (z.B. Bestand) und erstellen einer Bestellliste. 
+      > 
+      > Möglichkeit um Artikel als bestellt zu vermerken, damit diese auf der "In Bestellung" Liste angezeigt werden und Informationen wie "In Bestellung" + "Bestellmenge", "Bestellstatus" und "Bestelldatum" in der Datenbank hinterlegt werden und die Infos auf der Produktseite angezeigt werden.
 
     - **In Bestellung**
-        > [!WARNING]
-        > **Notiz 03.06.26: Aufgrund Projektumfang nicht umgesetzt**
-        >
-        > Anzeige der ausstehenden Lieferungen, Bestätigung nach Erhalt inkl. Aktualisierung des Bestands (Anpassung der Bestellmenge möglich)
+
+      > [!WARNING]
+      > **Notiz 03.06.26: Aufgrund Projektumfang nicht umgesetzt**
+      >
+      > Anzeige der ausstehenden Lieferungen, Bestätigung nach Erhalt inkl. Aktualisierung des Bestands (Anpassung der Bestellmenge möglich)
 
     - **Kategorien verwalten** Verwalten der Attribute (Filtermöglichkeiten) je Kategorie, Attribute können pro Kategorie hinzugefügt, bearbeitet und gelöscht werden. Diese dienen dann als Vorlage für "Artikel hinzufügen" und werden für die Filteroptionen verwendet.
 
     - **Artikel hinzufügen** Auswahl der Kategorie, Bildimport, Angabe der Artikeldetails/Spezifikationen, EAN/GTIN, Angabe des Mindestbestands, Angabe des Bestelllinks.
-        > [!CAUTION]
-        > **Abgrenzung:**
-        > (Angabe des Lagerfachs), (Angabe des Gewichts pro Stück), (Angabe des Fach Nettogewichts)
+
+      > [!IMPORTANT]
+      > **Abgrenzung:**
+      > (Angabe des Lagerfachs), (Angabe des Gewichts pro Stück), (Angabe des Fach Nettogewichts)
 
     - **KI-Artikelerfassung** Artikel können einfach per KI von einer Webseite eingelesen und erfasst werden. 
     
