@@ -259,37 +259,31 @@ Die Anwendung trennt strikt zwischen öffentlichen Bereichen und geschützten Be
   Die Daten in MongoDB werden in folgende Collections unterteilt:
 
   - **articles:** 
-  <br>
   Beinhaltet die Produktdaten, Bildlink zu Cloudinary, Erfassungs-/Updatezeit sowie den zugehörigen User.
 
   <img src="./static/images/readme/articles.png" alt="Beschreibung" width="100%">
 
   - **categories:**
-  <br>
   Beinhaltet die Hauptkategorien mit den zugehörigen Unterkategorien (inkl. Filteroptionen) Erfassungszeit sowie den zugehörigen User.
 
   <img src="./static/images/readme/categories.png" alt="Beschreibung" width="100%">
 
   - **filter_attributes:**
-  <br>
   Beinhaltet die Filteroptionen mit den zugehörigen Auswahloptionen, Einheit, ui_type (Zahl, Text, Dropdown) sowie den zugehörigen User.
 
   <img src="./static/images/readme/filter_attributes.png" alt="Beschreibung" width="100%">
 
   - **loginAttempts**
-  <br>
   Zeichnet bei einer fehlerhaften Login Eingabe die externe IP-Adresse auf. Bei 5 Fehlversuchen wird der Login für 5 Minuten blockiert. Sobald korrekt eingeloggt wird, wird die Protokollierung gelöscht.
 
   <img src="./static/images/readme/loginAttempts.png" alt="Beschreibung" width="100%">
 
   - **sessionLogs**
-  x§<br>
   Zeichnet die Sessions der einzelnen User auf, indem die UserId, E-Mail, Login Zeit und Logout Zeit (insofern ausgeloggt wird) gespeichert wird. Die Daten werden nach 3 Tagen durch einen definierten Prozess in Mongo DB automatisch gelöscht. 
 
   <img src="./static/images/readme/sessionLogs.png" alt="Beschreibung" width="100%">
   
   - **users**
-  <br>
   Beinhaltet die verschiedenen Benutzer, welche sich registriert haben inkl. E-Mail, Passwort (gehasht), Vorname, Nachname, Land (optional), Geburtsdatum (optional), Erstellungsdatum und Verifizierungsstatus.
   Wenn ein Nutzer sich neu registriert, wird hier ebenfalls der Verifizierungscode und der Ablaufzeitpunkt des Verifizierungscodes gespeichert.
 
