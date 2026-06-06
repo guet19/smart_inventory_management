@@ -55,7 +55,7 @@ Gemini KI-Bild als Veranschaulichung
   - **Intelligente Benachrichtigung:** Das System prüft den Bestand gegen einen hinterlegten Mindestwert. Bei Unterschreitung wird automatisch eine E-Mail mit einem direkten Nachkauf-Link an den Besitzer versendet.
 
   - **Mobiler Datenzugriff (Projektarbeit):** Da die Anwendung online zugänglich ist, kann der aktuelle Lagerbestand jederzeit von unterwegs (z. B. im Baumarkt) eingesehen werden.
-    - **Aufrufen des Inventars** durch Filterung nach Kategorien und Unterkategorien, sowie Suchfeld inkl. Detailanzeige.
+    - **Aufrufen des Inventars** durch Filterung nach Kategorien und Unterkategorien sowie Suchfeld inkl. Detailanzeige.
 
     - **Bestellen**
 
@@ -107,7 +107,7 @@ Die Durchführung des Projekts erfolgte entlang der vorgegebenen Phasen (Underst
       - Kleinunternehmen
 
     - Bedürfnisse:
-      - Schnelles finden von Bauteilen
+      - Schnelles Finden von Bauteilen
       - Automatisierte Bestandeskontrolle
       - Mobiler Inventarzugriff
       - Ausreichend Bestand
@@ -121,18 +121,18 @@ Die Durchführung des Projekts erfolgte entlang der vorgegebenen Phasen (Underst
 
     - Zur Fokussierung des Problemraums wurden folgende *How-Might-We-Fragen (HMW)* formuliert
       - Wie könnten wir den Such- und Entnahmeprozess von Kleinteilen so digitalisieren, dass das System den Nutzer visuell oder über smarte Filter direkt zum richtigen Artikel führt?
-      - Wie könnten wir die Bestandsaktualisierung und Erfassung von Artikeln so reibungslos gestalten, dass der manuelle Tippaufwand möhlichst gering ist?
+      - Wie könnten wir die Bestandsaktualisierung und Erfassung von Artikeln so reibungslos gestalten, dass der manuelle Tippaufwand möglichst gering ist?
       -	Wie können Fehlkäufe des Nutzers vermieden und zu wenig Bestand verhindert werden?
 
   
 **Existierende Lösungen:** 
-  - **Privatkunden/Kleinbetriebe:**  Für Privatkunden/Kleinbetriebe beschränken sich meist auf analoge Sortimentskästen mit unleserlichen Etiketten oder unübersichtliche Excel-Listen.   Die grösste Hürde bestehender Vorrats- oder Inventar-Apps liegt in der mangelhaften Usability, da jedes Produkt zeitaufwendig händisch eingetippt werden muss. Trotz Recherche in Arduino, RaspberryPi, Hackster.io, Instractables Foren, konnte ich keine fertige passende Lösung zum Eigenbau für Privatanwender und kleinere Betriebe finden. Fertige Lösungen, welche die Anforderungen erfüllen und kommerziell erworben werden können sind ebenfalls nicht vorhanden.
+  - **Privatkunden/Kleinbetriebe:**  Für Privatkunden/Kleinbetriebe beschränken sich meist auf analoge Sortimentskästen mit unleserlichen Etiketten oder unübersichtliche Excel-Listen.   Die grösste Hürde bestehender Vorrats- oder Inventar-Apps liegt in der mangelhaften Usability, da jedes Produkt zeitaufwendig händisch eingetippt werden muss. Trotz Recherche in Arduino, RaspberryPi, Hackster.io, Instractables Foren, konnte ich keine fertige passende Lösung zum Eigenbau für Privatanwender und kleinere Betriebe finden. Fertige Lösungen, welche die Anforderungen erfüllen und kommerziell erworben werden können, sind ebenfalls nicht vorhanden.
 
   - **Firmenlösungen:** 
 Professionelle Systeme aus der Grossindustrie (wie teure Pick-by-Light- oder RFID-Anlagen) sind für Privatanwender und Kleinbetriebe finanziell zu kostenintensiv. Diese Industrie Pick by Light Optionen werden von diversen Firmen wie [Luca Logistic Solution](https://www.luca.eu/pick-by-light/), [Captron](https://captron-solutions.com/en), [Schäfer](https://www.ssi-schaefer.com/de-de/produkte/kommissionierung-handling/manuelle-kommissionierung/pick-by-light) angeboten. 
 
 **Wesentliche Erkenntnisse:**
-  - Es wird eine bezahlbare, intuitive und webbasierte Lösung (Web-App) für Privatkunden/Kleinbetriebe benötigt, die den Fokus komplett auf Erfassungsgeschwindigkeit und flexible Strukturierung legt. Die manuelle Dateneingabe muss durch Automatisierung (Schnittstellen, KI) auf ein absolutes Minimum reduziert werden. Der Aufbau/Konfiguration der Lösung sollte möglichst einfach gestaltet werden. Ebenso soltle das Einsatzgebiet flexibel sein. 
+  - Es wird eine bezahlbare, intuitive und webbasierte Lösung (Web-App) für Privatkunden/Kleinbetriebe benötigt, die den Fokus komplett auf Erfassungsgeschwindigkeit und flexible Strukturierung legt. Die manuelle Dateneingabe muss durch Automatisierung (Schnittstellen, KI) auf ein absolutes Minimum reduziert werden. Der Aufbau/Konfiguration der Lösung sollte möglichst einfach gestaltet werden. Ebenso sollte das Einsatzgebiet flexibel sein. 
 
 
 
@@ -144,18 +144,18 @@ Professionelle Systeme aus der Grossindustrie (wie teure Pick-by-Light- oder RFI
 <img src="./static/images/readme/Crazy_8s_2.png" alt="Beschreibung" width="100%">
 
  **Kommentare von Simeon und Samet zu den verschiedenen Varianten (ausserhalb Unterricht):**
-  - **Positiv:** Am besten wurde die Variante unten links auf dem ersten Bild bewertet, da diese laut den beiden Kommentaren, die beste Bedienerfreundlichkeit und Anpassungsmöglichkeit mit Filtern, Suchen, sowie Produktübersicht bietet. 
+  - **Positiv:** Am besten wurde die Variante unten links auf dem ersten Bild bewertet, da diese laut den beiden Kommentaren, die beste Bedienerfreundlichkeit und Anpassungsmöglichkeit mit Filtern, Suchen sowie Produktübersicht bietet. 
   - **Negativ:** Am schlechtesten wurden die ersten Varianten auf Bild 1 und Bild 2 bewertet, da diese die Suche zeitintensiv gestaltet und somit die Benutzerfreundlichkeit stark leidet. Ebenfalls wurden andere Versionen als unübersichtlich, überfüllt oder schwer zu konfigurieren bewertet.
 
  **Skizzen:** 
-  - Am Ende entschied ich mich für den Favoriten von Simeon und Samet. Die Entscheidung fiel mir einfach, da ich von Anfang an überzeugt war, dass dies die beste Möglichkeit ist um möglichst viele Funktionen einzufügen, die Benutzerfreundlichkeit zu gewährleisten und das Layout nicht als zu überfüllt wirken zu lassen. Im unteren Bild ist die weiter ausgearbeitete Skizze der Hauptfunktion.
+  - Am Ende entschied ich mich für den Favoriten von Simeon und Samet. Die Entscheidung fiel mir einfach, da ich von Anfang an überzeugt war, dass dies die beste Möglichkeit ist, um möglichst viele Funktionen einzufügen, die Benutzerfreundlichkeit zu gewährleisten und das Layout nicht als zu überfüllt wirken zu lassen. Im unteren Bild ist die weiter ausgearbeitete Skizze der Hauptfunktion.
 
 
   <img src="./static/images/readme/Skizze.jpg" alt="Beschreibung" width="100%">
 
 
 ### 3.3 Decide
-**Gewählte Variante & Begründung:** Wie zuvor beschrieben, fiel die Wahl auf die *Kachelstruktur mit dynamischer Filter-Sidebar*. Als primäre Entscheidungskriterien galten eine hervorragende visuelle Übersicht (großzügige Artikelkarten mit Bildern) bei gleichzeitig maximaler Flexibilität für komplexe, filterbare Produktattribute. Ebenfalls ist die Option auch gut für die Mobileansicht umsetzbar. indem man die Filteroption mit einem Button einblenden lässt.
+**Gewählte Variante & Begründung:** Wie zuvor beschrieben, fiel die Wahl auf die *Kachelstruktur mit dynamischer Filter-Sidebar*. Als primäre Entscheidungskriterien galten eine hervorragende visuelle Übersicht (großzügige Artikelkarten mit Bildern) bei gleichzeitig maximaler Flexibilität für komplexe, filterbare Produktattribute. Ebenfalls ist die Option auch gut für die Mobileansicht umsetzbar, indem man die Filteroption mit einem Button einblenden lässt.
 
 **End-to-End-Ablauf:** Unten aufgeführt sind die User-Journey Maps, welche diverse Abläufe darstellen, wie der Benutzer ein Ziel erreichen/ausführen kann.
 
@@ -189,7 +189,7 @@ Professionelle Systeme aus der Grossindustrie (wie teure Pick-by-Light- oder RFI
 
 #### 3.4.1. Entwurf (Design)
 
-- **Informationsarchitektur:** Für die Informationsarchitektur entschied ich mich als Hauptmenü direkt die Inventarübersicht zu nutzen. Diese Seite wird für das Abrufen von Artikeln mit Hilfsfunktionen wie Filter und einer Suche genutzt (grösster Teil der Nutzung). Ebenfalls ist über die Startseite die "Artikel hinzufügen" Option erreichbar (zweitgrösster Teil der Nutzung). Zusätzlich entschied ich mich für einen Abschnitt in der Navigationsleiste mit dem Namen "Kategorien/Filter verwalten", welche die Option bietet um selbst Haupt-, sowie Unterkategorien anzulegen. Ebenfalls kann man den Kategorien eigene Filteroptionen hinzufügen.
+- **Informationsarchitektur:** Für die Informationsarchitektur entschied ich mich als Hauptmenü direkt die Inventarübersicht zu nutzen. Diese Seite wird für das Abrufen von Artikeln mit Hilfsfunktionen wie Filter und einer Suche genutzt (grösster Teil der Nutzung). Ebenfalls ist über die Startseite die "Artikel hinzufügen" Option erreichbar (zweitgrösster Teil der Nutzung). Zusätzlich entschied ich mich für einen Abschnitt in der Navigationsleiste mit dem Namen "Kategorien/Filter verwalten", welche die Option bietet um selbst Haupt- sowie Unterkategorien anzulegen. Ebenfalls kann man den Kategorien eigene Filteroptionen hinzufügen.
 
 - **User Interface Design:** 
   - Die Startseite fungiert als zentrales Dashboard für das Inventar. Der Bildschirm ist funktional in drei Kernbereiche unterteilt: die globale Such- und Kategorieleiste (Top-Bar), die spezifische Filter-Sidebar (noch nicht umgesetzt) und die Artikelanzeige im Hauptbereich. Die Navigation bleibt durch eine schlanke Navbar im oberen Bereich jederzeit zugänglich.
@@ -247,7 +247,7 @@ Die Anwendung trennt strikt zwischen öffentlichen Bereichen und geschützten Be
 
   - Wichtige Komponenten:
     - Dynamischer Aufbau der Inventarseite inkl. den Filtern, welche durch die in der Filter/Kategorieverwaltung festgelegten Definitionen und den angelegten Artikel angepasst aufgebaut werden.
-    - Dynamischer Aufbau der Spezifikationsabfrage nach Definition des Unterkategoriebereichs beim hinzufügen eines neuen Artikels.
+    - Dynamischer Aufbau der Spezifikationsabfrage nach Definition des Unterkategoriebereichs beim Hinzufügen eines neuen Artikels.
     - Individuell anpassbare Haupt- und Unterkategorien, welche mit Filtern versehen werden können.
     - Individuell anpassbare Filtermöglichkeiten, welche als Text, Zahl oder Dropdown konfiguriert und bei letzterem mit Werten versehen werden um Duplikate zu vermeiden.
   
@@ -338,8 +338,8 @@ Die Anwendung trennt strikt zwischen öffentlichen Bereichen und geschützten Be
 - **Kennzahlen & Beobachtungen:** 
   - **Kategorien/Filter anlegen (Aufgabe 1 & 2):** Die Navigation wurde als logisch und schnell empfunden.
     - **Identifizierte Issues:** 
-      - Der zweistufige Prozess beim Anlegen von Attributen (erst erstellen, dann zuweisen) wurde von den Testern als sinnvoll erachtet, um Duplikate zu vermeiden, ist jedoch bei der ersten Anwendung ein wenig kompliziert. Ebenfalls war es aufgrund der des Aufbaus der Benutzeroberfläche ein wenig umständlich.
-      - Es wurde gewünscht, dass nach dem Anlegen einer Hauptkategorie diese automatisch geöffnet wird und man zu dem Bereich zum anlegen einer Unterkategorie gelangt, ohne diese manuell anzuwählen.
+      - Der zweistufige Prozess beim Anlegen von Attributen (erst erstellen, dann zuweisen) wurde von den Testern als sinnvoll erachtet, um Duplikate zu vermeiden, ist jedoch bei der ersten Anwendung ein wenig kompliziert. Ebenfalls war es aufgrund des Aufbaus der Benutzeroberfläche ein wenig umständlich.
+      - Es wurde gewünscht, dass nach dem Anlegen einer Hauptkategorie diese automatisch geöffnet wird und man zu dem Bereich zum Anlegen einer Unterkategorie gelangt, ohne diese manuell anzuwählen.
   - **Import-Prozesse (Aufgabe 3 & 4):** Das manuelle Übertragen funktionierte sehr gut (inkl. Bildzuschnitt), wurde aber als sehr langwierig empfunden. Die Erfassungsdauer mit dem KI-Lesezeichen benötigte geschätzt etwa nur 1/5 der Zeit, welchen die manuelle Erfassung benötigt hätte.
     - **Identifizierte Issues:** 
       - Der KI-Import über das Bookmarklet begeisterte, jedoch kam es zu Unsicherheiten ("KI reagiert am Anfang nicht direkt" / Verzögerung ohne visuelles Feedback). 
@@ -366,7 +366,7 @@ Dokumentiert Erweiterungen über den Mindestumfang hinaus.
 ### 4.1 KI-gestützter Artikel-Import (Bookmarklet & Google Gemini)
 - **Beschreibung & Nutzen:** Die manuelle Dateneingabe ist der grösste "Pain Point" bei Inventar-Systemen. Um dies zu lösen, wurde ein externes Browser-Lesezeichen entwickelt, das Nutzer in beliebigen Online-Shops (z. B. Galaxus, Jumbo) anklicken können. Dieses kann auf der Webseite unter Tools in das Lesezeichenmenü gezogen werden. Es extrahiert versteckte Strukturdaten (JSON-LD) sowie Seitentexte und leitet auf die Sortifiy Artikel hinzufügen Webseite, danach sendet dieses die Daten an das Sortify-Backend und Cheerio bereinigt einen Teil der Daten. Danach übernimmt die Google Gemini KI, bereinigt die restlichen Daten, verfasst saubere Beschreibungen, liest Metadaten wie EAN/GTIN aus und berechnet durch die Packungseinheit und den Verkaufspreis automatisch die Gesamtstückzahl. Dies reduziert die Erfassungsdauer erheblich, wie dies in der Evalutation bestätigt wurde.
 
-  - **Probleme:** Zu Beginn war ein einfaches einfügen des Links geplant, jedoch musste ich später feststellen, dass einige Webseiten den Zugriff blockieren und somit das Auslesen der Daten nicht möglich war, deshalb wurde auf das Lesezeichen umgestiegen, welches die Daten ausliest. Nach dem Deploy musste ich feststellen, dass das Lesezeichen nicht mehr so gut funktioniert, da Netlify die URL ab einer gewissen Zeichenlänge kürzt und somit die Daten verloren gehen, weshalb das Lesezeichen mit dem JavaScript Code erneut angepasst werden musste.
+  - **Probleme:** Zu Beginn war ein einfaches Einfügen des Links geplant, jedoch musste ich später feststellen, dass einige Webseiten den Zugriff blockieren und somit das Auslesen der Daten nicht möglich war, deshalb wurde auf das Lesezeichen umgestiegen, welches die Daten ausliest. Nach dem Deploy musste ich feststellen, dass das Lesezeichen nicht mehr so gut funktioniert, da Netlify die URL ab einer gewissen Zeichenlänge kürzt und somit die Daten verloren gehen, weshalb das Lesezeichen mit dem JavaScript Code erneut angepasst werden musste.
 
 - **Wo umgesetzt:**
   - **Frontend:** JavaScript-Lesezeichen zur clientseitigen Datenextraktion im Shop.
@@ -379,7 +379,7 @@ Dokumentiert Erweiterungen über den Mindestumfang hinaus.
   - Teilweise. Dieses Feature wurde von Beginn an konzipiert, jedoch wurden einige Verbesserungsvorschläge in Bezug auf die Bedienung, wie Ladebalken umgesetzt.
 
 ### 4.2 Multi-Tenant-Architektur & Custom Security Lifecycle
-- **Beschreibung & Nutzen:** Um das unberechtigte Ändern von Daten zu unterbinden und das getrennte Anlegen und Nutzen von Artikel, Filtern und dem Inventar für verschiedene User zu ermöglichen, wurde eine vollständig serverseitiges Authentifizierungssystem für eine Mandantenarchitektur eingebaut. Mehrere Nutzer können das System parallel verwenden, wobei ihre Inventardaten strikt voneinander isoliert sind. Das System beinhaltet E-Mail-Verifizierung (Anbindung einer Gmail Mailadresse über nodemailer) via Tokens, zeitlich begrenzte Passwort-Reset-Links, Speicherung des Login Zugangs mit Cookie und IP-basiertes Rate-Limiting als Schutz vor Brute-Force-Angriffen. 
+- **Beschreibung & Nutzen:** Um das unberechtigte Ändern von Daten zu unterbinden und das getrennte Anlegen und Nutzen von Artikel, Filtern und dem Inventar für verschiedene User zu ermöglichen, wurde ein vollständig serverseitiges Authentifizierungssystem für eine Mandantenarchitektur eingebaut. Mehrere Nutzer können das System parallel verwenden, wobei ihre Inventardaten strikt voneinander isoliert sind. Das System beinhaltet E-Mail-Verifizierung (Anbindung einer Gmail Mailadresse über nodemailer) via Tokens, zeitlich begrenzte Passwort-Reset-Links, Speicherung des Login Zugangs mit Cookie und IP-basiertes Rate-Limiting als Schutz vor Brute-Force-Angriffen. 
 
 - **Wo umgesetzt:**
   - **Frontend:** Login, Logout, Register, Reset-Password in SvelteKit.
@@ -390,7 +390,7 @@ Dokumentiert Erweiterungen über den Mindestumfang hinaus.
 - **Aus Evaluation abgeleitet?** Nein. Die Nutzung mit mehreren Nutzern wurde gegen Ende des Projekts beschlossen.
 
 ### 4.3 Clientseitige Bildverarbeitung
-- **Beschreibung & Nutzen:** Um das Layout des digitalen Lagers nicht durch inkonsistente Bildformate zu zerschiessen, wurde eine Lösung für Produktbilder benötigt. Anstatt Bilder roh hochzuladen, wurde ein Editor integriert, der es Nutzern erlaubt, hochgeladene oder via Web importierte Bilder direkt im Browser zuzuschneiden und ein einheitliches 4:3-Format zu erzwingen. Vor dem senden an den Server, werden diese zusätzlich komprimiert.
+- **Beschreibung & Nutzen:** Um das Layout des digitalen Lagers nicht durch inkonsistente Bildformate zu zerschiessen, wurde eine Lösung für Produktbilder benötigt. Anstatt Bilder roh hochzuladen, wurde ein Editor integriert, der es Nutzern erlaubt, hochgeladene oder via Web importierte Bilder direkt im Browser zuzuschneiden und ein einheitliches 4:3-Format zu erzwingen. Vor dem Senden an den Server, werden diese zusätzlich komprimiert.
 
 - **Wo umgesetzt:**
   - **Frontend:** Einbindung und Konfiguration der Bibliothek Cropper.js innerhalb der Svelte-Komponenten für die Artikelerfassung.
@@ -441,7 +441,7 @@ Dokumentiert Erweiterungen über den Mindestumfang hinaus.
 ### 5.3 Reflexion
 - **Nutzen:** KI erwies sich innerhalb der Projekts als extrem hilfreich und beschleunigte die Entwicklung enorm. Zudem wären viele Dinge mit meinem Know-How nicht umsetzbar gewesen. Ebenfalls half die KI auch enorm bei der Bewertung von Ideen geholfen.
 
-- **Grenzen:** Trotz der grossen Hilfe von KI gab es teilweise Zeiten, in welcher die KI einfache Entscheidungen komplett falsch interpretierte (evtl. ist dies auf hohe Auslastung der Dienste zurückzuführen). Ebenfalls war es nicht Möglich weiter zu Prompten, sobald das Tokenlimit aufgebraucht war und auf ein schwächeres Modell (3.1 Flash-Lite) gewechselt wurde.
+- **Grenzen:** Trotz der grossen Hilfe von KI gab es teilweise Zeiten, in welcher die KI einfache Entscheidungen komplett falsch interpretierte (evtl. ist dies auf hohe Auslastung der Dienste zurückzuführen). Ebenfalls war es nicht möglich weiter zu prompten, sobald das Tokenlimit aufgebraucht war und auf ein schwächeres Modell (3.1 Flash-Lite) gewechselt wurde.
 
 - **Risiken/Qualitätssicherung:** Ein grosses Risiko sehe ich in der unreflektierten Übernahme von Codes. Vor einer tatsächlichen produktiven Nutzung des Programms wäre es ratsam jemanden mit grosser Erfahrung den Code überblicken zu lassen und auf Sicherheitslücken und Datenschutzvorkehrungen zu überprüfen. 
 
